@@ -235,7 +235,7 @@
           obj.traverse(n => { if (n.isMesh){ n.castShadow = n.receiveShadow = true; }});
           const box = new THREE.Box3().setFromObject(obj);
           const size = new THREE.Vector3(); box.getSize(size);
-          const targetH = 2.2;
+          const targetH = 6.0;
           const s = size.y > 1e-4 ? (targetH / size.y) : 1.0;
           obj.scale.setScalar(s);
           const box2 = new THREE.Box3().setFromObject(obj);
