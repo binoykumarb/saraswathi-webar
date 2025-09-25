@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Saraswati – Media Hub (Webcam gestures v2 + Sidebar Category)</title>
+  <title>Saraswati – Media Hub (Webcam gestures v2)</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 
   <!-- MediaPipe Hands -->
@@ -15,16 +15,12 @@
     :root{--bg:#0b0b0c;--panel:#141419;--muted:#9aa0a6;--text:#fff;--line:#222;--accent:#8ab4f8}
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    .wrap{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
+    .wrap{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
     header{grid-column:1/3;display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);background:#0e0e12;position:sticky;top:0;z-index:10}
     header .title{font-weight:700}
     header .sp{flex:1}
     header .search{min-width:220px;max-width:420px;width:100%;background:#0d0d11;border:1px solid #2a2a2f;border-radius:999px;color:#eee;padding:8px 12px;outline:none}
     .sidebar{border-right:1px solid var(--line);overflow:auto;background:var(--panel);z-index:5;position:relative}
-    .sidebarTop{position:sticky;top:0;z-index:6;background:linear-gradient(#15151b,#121219);padding:10px;border-bottom:1px solid #1e1e24;display:flex;gap:8px;align-items:center}
-    .sidebarTop label{font-size:12px;color:#b7bdc6;opacity:0.9}
-    .sidebarTop select{flex:1;min-width:120px;background:#0d0d11;border:1px solid #2a2a2f;color:#eee;border-radius:10px;padding:8px 10px;outline:none}
-    .sidebarTop .count{margin-left:auto;font-size:12px;color:#9aa0a6}
     .list{padding:8px;display:flex;flex-direction:column;gap:8px}
     .item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #1e1e24;background:#101014;border-radius:12px;cursor:pointer}
     .item.active{outline:2px solid var(--accent);border-color:#2a2a40}
@@ -54,12 +50,6 @@
     .camWrap{position:relative;width:220px;height:150px;border-radius:10px;overflow:hidden;border:1px solid #222;background:#000}
     .camWrap video,.camWrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
     .camBtns{display:flex;gap:8px;justify-content:flex-end}
-
-    @media (max-width: 920px){
-      .wrap{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-      .sidebar{grid-row:2;max-height:44vh}
-      .camWrap{width:180px;height:120px}
-    }
   </style>
 </head>
 <body>
@@ -71,16 +61,6 @@
     </header>
 
     <aside class="sidebar">
-      <div class="sidebarTop">
-        <label for="cat">Category:</label>
-        <select id="cat">
-          <option value="all">All</option>
-          <option value="webxr">VR</option>
-          <option value="audio">Audio</option>
-          <option value="video">Video</option>
-        </select>
-        <div class="count" id="count">0 items</div>
-      </div>
       <div id="list" class="list"></div>
     </aside>
 
@@ -161,6 +141,7 @@
           obj.traverse(n => { if (n.isMesh){ n.castShadow = n.receiveShadow = true; }});
           const box = new THREE.Box3().setFromObject(obj);
           const size = new THREE.Vector3(); box.getSize(size);
+          const center = new THREE.Vector3(); box.getCenter(center);
           const targetH = 2.2;
           const s = size.y > 1e-4 ? (targetH / size.y) : 1.0;
           obj.scale.setScalar(s);
@@ -183,10 +164,8 @@
     const nextBtn = document.getElementById('next');
     const enterVRBtn = document.getElementById('enterVR');
     const scn = document.getElementById('scene');
-    const catSel = document.getElementById('cat');
-    const countEl = document.getElementById('count');
 
-    function typeBadge(t){ if (t === 'webxr') return 'VR'; if (t === 'audio') return 'Audio'; if (t === 'youtube') return 'Video'; if (t === 'youtube_playlist') return 'Video'; return t || 'Item'; }
+    function typeBadge(t){ if (t === 'webxr') return 'VR'; if (t === 'audio') return 'Audio'; if (t === 'youtube') return 'Video'; if (t === 'youtube_playlist') return 'Playlist'; return t || 'Item'; }
     function itemHTML(item, active){ return '<div class="item'+(active?' active':'')+'" data-id="'+item.id+'">' + '<div class="badge">'+ typeBadge(item.type) +'</div>' + '<div class="meta"><div class="title">'+ item.title +'</div><div class="type">'+ (item.type||'') +'</div></div>' + '</div>'; }
 
     const DEFAULT_PLAYLIST = [
@@ -202,39 +181,13 @@
   </script>
   <script src="/playlist.js"></script>
   <script>
-    const fullList = (window.SARASWATI_PLAYLIST && window.SARASWATI_PLAYLIST.length) ? window.SARASWATI_PLAYLIST : DEFAULT_PLAYLIST;
-    let filtered = fullList.slice();
+    const playlist = (window.SARASWATI_PLAYLIST && window.SARASWATI_PLAYLIST.length) ? window.SARASWATI_PLAYLIST : DEFAULT_PLAYLIST;
+    let filtered = playlist.slice();
     let idx = 0;
     let currentAudio = null;
-    let currentId = filtered.length ? filtered[0].id : null;
-
-    function applyFilters(){
-      const q = (input.value || '').trim().toLowerCase();
-      const cat = catSel.value;
-      filtered = fullList.filter(it => {
-        // Category match
-        let okCat = true;
-        if (cat === 'webxr') okCat = it.type === 'webxr';
-        else if (cat === 'audio') okCat = it.type === 'audio';
-        else if (cat === 'video') okCat = (it.type === 'youtube' || it.type === 'youtube_playlist');
-        // Search match
-        const okSearch = !q || (it.title && it.title.toLowerCase().includes(q));
-        return okCat && okSearch;
-      });
-      countEl.textContent = filtered.length + (filtered.length===1 ? ' item' : ' items');
-      // Keep selection if present, otherwise reset
-      const keep = filtered.findIndex(it => it.id === currentId);
-      idx = keep >= 0 ? keep : 0;
-      renderList();
-    }
 
     function renderList(){ listEl.innerHTML = filtered.map((it, i)=> itemHTML(it, i===idx)).join(''); }
-    function setActive(i){
-      idx = Math.max(0, Math.min(filtered.length-1, i));
-      currentId = filtered[idx] ? filtered[idx].id : null;
-      renderList();
-      if (filtered[idx]) play(filtered[idx]);
-    }
+    function setActive(i){ idx = Math.max(0, Math.min(filtered.length-1, i)); renderList(); play(filtered[idx]); }
     function ytEmbed(url){
       try{
         const u = new URL(url);
@@ -264,14 +217,12 @@
 
     // Clicks
     listEl.addEventListener('click', (e)=>{ const card = e.target.closest('.item'); if (!card) return; const i = Array.from(listEl.children).indexOf(card); setActive(i); });
-    // Prev / Next
-    function prev(){ if (!filtered.length) return; setActive((idx - 1 + filtered.length) % filtered.length); }
-    function next(){ if (!filtered.length) return; setActive((idx + 1) % filtered.length); }
+    // Prev / Next buttons
+    function prev(){ setActive((idx - 1 + filtered.length) % filtered.length); }
+    function next(){ setActive((idx + 1) % filtered.length); }
     prevBtn.onclick = prev; nextBtn.onclick = next;
-    // Filters
-    input.addEventListener('input', applyFilters);
-    catSel.addEventListener('change', applyFilters);
-
+    // Search
+    input.addEventListener('input', ()=>{ const q = input.value.trim().toLowerCase(); filtered = !q ? playlist.slice() : playlist.filter(it => it.title.toLowerCase().includes(q)); idx = 0; renderList(); });
     // Enter VR
     enterVRBtn.addEventListener('click', ()=>{ if (scn && scn.enterVR) scn.enterVR(); });
 
@@ -285,12 +236,7 @@
     document.body.addEventListener('mouseup', e=> end(e.clientX, e.clientY));
     window.addEventListener('keydown', e=>{ if (e.key === 'ArrowRight') next(); else if (e.key === 'ArrowLeft') prev(); });
 
-    // VR controllers
-    const leftCtl = document.getElementById('leftCtl'); const rightCtl = document.getElementById('rightCtl');
-    if (leftCtl){ leftCtl.addEventListener('xbuttondown', prev); leftCtl.addEventListener('ybuttondown', prev); leftCtl.addEventListener('thumbstickmoved', e=>{ if ((e.detail||{}).x < -0.8) prev(); }); }
-    if (rightCtl){ rightCtl.addEventListener('abuttondown', next); rightCtl.addEventListener('bbuttondown', next); rightCtl.addEventListener('thumbstickmoved', e=>{ if ((e.detail||{}).x > 0.8) next(); }); }
-
-    // --- Webcam gestures (v2) ---
+    // --- Webcam gestures (improved) ---
     const camStatus = document.getElementById('camStatus');
     const gestStatus = document.getElementById('gestStatus');
     const debugStatus = document.getElementById('debugStatus');
@@ -321,15 +267,17 @@
       return count; // 0..4
     }
 
-    // Hysteresis
+    // Hysteresis: require 3 consecutive frames of the same class
     let openFrames = 0, fistFrames = 0;
     const cooldown = {next:0, prev:0}, GAP=650;
 
     function classifyAndAct(allLm){
       if (!allLm || !allLm.length){ setGestStatus('none'); setDebug('-'); openFrames=0; fistFrames=0; return; }
+      // Choose the hand with more extension
       let best = {ext:-1, idx:0};
       allLm.forEach((lm,i)=>{ const ext = extendedCount(lm); if (ext>best.ext){ best={ext, idx:i}; }});
       const ext = best.ext;
+      // Fallback: openness average as tie-breaker (optional)
       setDebug('extended=' + ext);
 
       if (ext >= 3){ openFrames++; fistFrames=0; setGestStatus('open ('+ext+'/4)'); }
@@ -389,9 +337,8 @@
     document.getElementById('stopCam').addEventListener('click', stopCamera);
     (async ()=>{ try{ await startCamera(); }catch{} })();
 
-    // Boot
-    applyFilters();
-    if (filtered.length) setActive(idx);
+    // Boot the UI
+    renderList(); play(filtered[idx]);
   </script>
 </body>
 </html>
