@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Iframe VR Embed Demo</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0b0c;color:#fff;font:14px/1.4 system-ui}
+    header{padding:10px 12px;border-bottom:1px solid #222}
+    main{height:calc(100% - 52px)}
+    iframe{width:100%;height:100%;border:0;background:#000}
+    .note{padding:10px 12px;color:#ccc}
+  </style>
+</head>
+<body>
+  <header>Iframe VR Embed Demo</header>
+  <div class="note">
+    This page embeds <code>/vr-preview.html</code> (2D preview) from the same origin.
+    Click inside the frame → the VR page has its own “Enter VR” button.
+  </div>
+  <main>
+    <!-- IMPORTANT: same-origin path (no sandbox), and allow WebXR + sensors -->
+    <iframe
+      src="/vr-preview.html"
+      allow="autoplay; fullscreen; xr-spatial-tracking; camera; microphone; accelerometer; gyroscope"
+      allowfullscreen
+      referrerpolicy="no-referrer">
+    </iframe>
+  </main>
+</body>
+</html>

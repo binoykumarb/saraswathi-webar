@@ -1,265 +1,409 @@
-// VR Saraswati Temple — WebXR + Three.js
-// Adds explicit CTA (Enter VR) that triggers native WebXR button internally
-// Also includes teleport + snap-turn + adjustable arc speed.
+// BUILD: vr-2025-09-26-7
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 import { VRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/VRButton.js";
 import { XRControllerModelFactory } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/XRControllerModelFactory.js";
+import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
+import { EXRLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/EXRLoader.js";
 
+// build tag visible on screen so you know this file loaded
+(() => {
+  const tag = document.createElement("div");
+  tag.textContent = "BUILD: vr-2025-09-26-7";
+  tag.style.cssText =
+    "position:fixed;right:8px;top:8px;color:#fff;background:#111a;border:1px solid #333;padding:4px 8px;border-radius:8px;font:11px system-ui;z-index:10";
+  document.body.appendChild(tag);
+})();
+
+const QS = new URLSearchParams(location.search);
+const PREVIEW = QS.has("preview");
+
+// HUD / ERR
+function HUD(msg) {
+  let el = document.querySelector(".hint");
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "hint";
+    el.style.cssText =
+      "position:fixed;left:12px;bottom:12px;color:#ddd;font:12px/1.3 system-ui;background:#0008;padding:6px 10px;border-radius:10px;z-index:5";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  window.parent?.postMessage({ type: "STATUS", text: String(msg) }, "*");
+}
+function ERR(msg) {
+  let el = document.getElementById("err");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "err";
+    el.style.cssText =
+      "position:fixed;left:12px;top:12px;max-width:66ch;background:#300;border:1px solid #a00;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.35 system-ui;white-space:pre-wrap;z-index:6";
+    document.body.appendChild(el);
+  }
+  el.style.display = "block";
+  el.textContent = String(msg);
+  window.parent?.postMessage({ type: "STATUS", text: "error" }, "*");
+}
+window.addEventListener("error", (e) => ERR(e?.error?.stack || e.message || e));
+window.addEventListener("unhandledrejection", (e) =>
+  ERR(e?.reason?.stack || e.reason || e)
+);
+
+// Resolve model URL from global, body, QS, default
+function resolveModelURL() {
+  let m = window.GLB;
+  if (!m) {
+    const d = document.body?.dataset?.model;
+    if (d) m = d;
+  }
+  if (!m) {
+    const q = QS.get("model");
+    if (q) m = q;
+  }
+  if (!m) m = "/assets/3d/saraswathi.glb";
+  return m;
+}
+const MODEL_URL = resolveModelURL();
+window.parent?.postMessage({ type: "MODEL_RESOLVED", url: MODEL_URL }, "*");
+HUD("Model: " + MODEL_URL);
+
+// Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-// Keep a reference to the native WebXR button and hide it (we'll click it from CTA)
-const nativeBtn = VRButton.createButton(renderer);
-nativeBtn.id = "native-vr-button";
-nativeBtn.style.position = "fixed";
-nativeBtn.style.right = "12px";
-nativeBtn.style.bottom = "12px";
-nativeBtn.style.zIndex = "4";
-document.body.appendChild(nativeBtn);
-
+// Scene / Camera / Controls
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x09090b);
-scene.fog = new THREE.Fog(0x0b0b10, 35, 140);
-
+scene.background = new THREE.Color(0x0a0a0d);
 const rig = new THREE.Group();
 scene.add(rig);
-
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 400);
-camera.position.set(0, 1.6, 6);
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  400
+);
+camera.position.set(0, 1.7, 6);
 rig.add(camera);
-
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.6, 0);
 controls.enableDamping = true;
-
-// Hook up CTA to start/stop VR session via the native button (must be user gesture)
-const cta = document.getElementById("ctaVR");
-if (cta) {
-  cta.addEventListener("click", () => {
-    nativeBtn.click();
-  });
-  // Show CTA only if immersive-vr is supported
-  if (navigator.xr?.isSessionSupported) {
-    navigator.xr.isSessionSupported("immersive-vr").then(supported => {
-      cta.style.display = supported ? "inline-flex" : "none";
-    }).catch(()=> (cta.style.display = "none"));
-  } else {
-    cta.style.display = "none";
-  }
-  // Hide CTA during session
-  renderer.xr.addEventListener("sessionstart", () => cta.style.display = "none");
-  renderer.xr.addEventListener("sessionend",   () => {
-    navigator.xr?.isSessionSupported?.("immersive-vr").then(s => {
-      cta.style.display = s ? "inline-flex" : "none";
-    }).catch(()=> (cta.style.display = "none"));
-  });
-}
+controls.enablePan = false;
 
 // Lights
-scene.add(new THREE.HemisphereLight(0xfff0e0, 0x0a0a12, 0.6));
-const keyLight = new THREE.DirectionalLight(0xfff3d2, 0.9);
-keyLight.position.set(8, 18, 8);
-keyLight.castShadow = true;
-keyLight.shadow.mapSize.set(2048, 2048);
-scene.add(keyLight);
+scene.add(new THREE.HemisphereLight(0xfff0e0, 0x0a0a12, 0.4));
+const key = new THREE.DirectionalLight(0xfff3d2, 0.8);
+key.position.set(10, 20, 10);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+scene.add(key);
 
-// Lamps
-const lampPositions = [[-6, 2, -2], [6, 2, -2], [-6, 2, 6], [6, 2, 6], [0, 5, -6], [0, 5, 6]];
-lampPositions.forEach(([x,y,z]) => {
-  const s = new THREE.PointLight(0xffcc88, 0.7, 30, 2.0);
-  s.position.set(x,y,z);
-  s.castShadow = true;
-  scene.add(s);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05), new THREE.MeshBasicMaterial({ color: 0xffb96b }));
-  bulb.position.copy(s.position);
-  scene.add(bulb);
-});
+// HDRI (optional)
+(async () => {
+  try {
+    HUD("Loading sky…");
+    const exr = await new EXRLoader().loadAsync(
+      "/assets/hdr/NightSkyHDRI003_2K-HDR.exr"
+    );
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    const env = pmrem.fromEquirectangular(exr).texture;
+    scene.environment = env;
+    scene.background = env;
+    key.intensity = 0.5;
+    exr.dispose();
+    pmrem.dispose();
+    HUD("Sky ready");
+  } catch (e) {
+    console.warn("HDRI not found/failed:", e);
+    HUD("Sky fallback");
+  }
+})();
 
-// Floor
-const FLOOR_Y = 0;
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.6, metalness: 0.05 }));
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = FLOOR_Y;
-floor.receiveShadow = true;
-scene.add(floor);
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(240, 240),
+  new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.85 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
 
-// Columns
-function makeColumn() {
-  const g1 = new THREE.CylinderGeometry(0.6, 0.7, 0.3, 24);
-  const g2 = new THREE.CylinderGeometry(0.35, 0.35, 4.2, 24);
-  const g3 = new THREE.CylinderGeometry(0.7, 0.6, 0.35, 24);
-  const m1 = new THREE.MeshStandardMaterial({ color: 0xededf2, roughness: 0.4, metalness: 0.05 });
-  const m2 = new THREE.MeshStandardMaterial({ color: 0xf2f2f7, roughness: 0.4, metalness: 0.05 });
-  const base = new THREE.Mesh(g1, m1); base.castShadow = base.receiveShadow = true;
-  const shaft = new THREE.Mesh(g2, m2); shaft.position.y = 2.4; shaft.castShadow = shaft.receiveShadow = true;
-  const cap = new THREE.Mesh(g3, m1); cap.position.y = 4.8; cap.castShadow = cap.receiveShadow = true;
-  const grp = new THREE.Group(); grp.add(base, shaft, cap); return grp;
-}
-for (let x of [-8, -4, 4, 8]) for (let z of [-10, -5, 0, 5, 10]) { const c = makeColumn(); c.position.set(x, 0, z); scene.add(c); }
-
-// Lotus + Idol
-function makeLotus(radius = 1.5, petals = 18) {
+// Lotus dais
+function makeLotus(radius = 1.8, petals = 20) {
   const grp = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.9, radius, 0.5, 48), new THREE.MeshStandardMaterial({ color: 0xe7e1ff, roughness: 0.35, metalness: 0.1 }));
-  base.castShadow = base.receiveShadow = true; grp.add(base);
-  const petalGeo = new THREE.SphereGeometry(0.45, 24, 24); petalGeo.scale(0.55, 0.25, 1.0);
-  const petalMat = new THREE.MeshStandardMaterial({ color: 0xf7e8ff, roughness: 0.3, metalness: 0.1 });
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.92, radius, 0.5, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0xe7e1ff,
+      roughness: 0.35,
+      metalness: 0.1,
+    })
+  );
+  base.castShadow = base.receiveShadow = true;
+  base.position.y = 0.25;
+  grp.add(base);
+  const petalGeo = new THREE.SphereGeometry(0.5, 24, 24);
+  petalGeo.scale(0.55, 0.25, 1.0);
+  const petalMat = new THREE.MeshStandardMaterial({
+    color: 0xf7e8ff,
+    roughness: 0.3,
+    metalness: 0.1,
+  });
   for (let i = 0; i < petals; i++) {
     const p = new THREE.Mesh(petalGeo, petalMat);
-    const ang = (i / petals) * Math.PI * 2;
-    p.position.set(Math.cos(ang) * (radius * 0.95), 0.35, Math.sin(ang) * (radius * 0.95));
-    p.rotation.y = ang; p.castShadow = p.receiveShadow = true; grp.add(p);
+    const a = (i / petals) * Math.PI * 2;
+    p.position.set(
+      Math.cos(a) * (radius * 0.95),
+      0.55,
+      Math.sin(a) * (radius * 0.95)
+    );
+    p.rotation.y = a;
+    p.castShadow = p.receiveShadow = true;
+    grp.add(p);
   }
   return grp;
 }
-const dais = makeLotus(); dais.position.y = 0.35; scene.add(dais);
+scene.add(makeLotus());
 
-const idol = new THREE.Group();
-const idolMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222233, metalness: 0.05, roughness: 0.35 });
-idol.add(new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.0, 8, 16), idolMat));
-idol.children[0].position.y = 2.1; idol.children[0].castShadow = idol.children[0].receiveShadow = true;
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 24), idolMat); head.position.y = 2.7; head.castShadow = head.receiveShadow = true; idol.add(head);
-const crown = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0xffd87a, metalness: 0.6, roughness: 0.2 })); crown.position.y = 3.05; crown.castShadow = true; idol.add(crown);
-const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.8, 32), idolMat); skirt.position.y = 1.6; skirt.castShadow = skirt.receiveShadow = true; idol.add(skirt);
-const veenaNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 16), idolMat); veenaNeck.rotation.z = 0.45; veenaNeck.position.set(0.4, 2.1, 0.15); idol.add(veenaNeck);
-const veenaGourd = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), idolMat); veenaGourd.position.set(0.95, 1.7, 0.15); idol.add(veenaGourd);
-const halo = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.025, 16, 48), new THREE.MeshStandardMaterial({ color: 0xffe79a, emissive: 0xffd98a, emissiveIntensity: 0.35 })); halo.position.set(0, 2.7, -0.1); idol.add(halo);
-idol.position.y = 0.6; scene.add(idol);
+// Material/mesh helpers
+function normalizeMat(m) {
+  if (!m) return;
+  if (m.isMeshStandardMaterial) {
+    m.roughness ??= 0.6;
+    m.metalness ??= 0.05;
+    m.needsUpdate = true;
+    return;
+  }
+  const std = new THREE.MeshStandardMaterial({
+    color: m.color ? m.color.getHex() : 0xdddddd,
+    roughness: 0.6,
+    metalness: 0.05,
+  });
+  if (m.map) std.map = m.map;
+  if (m.normalMap) std.normalMap = m.normalMap;
+  if (m.roughnessMap) std.roughnessMap = m.roughnessMap;
+  if (m.metalnessMap) std.metalnessMap = m.metalnessMap;
+  std.needsUpdate = true;
+  return std;
+}
+function cleanupMesh(mesh) {
+  const g = mesh.geometry;
+  if (g && !g.getAttribute("normal")) g.computeVertexNormals();
+  mesh.castShadow = mesh.receiveShadow = true;
+  const nm = normalizeMat(mesh.material);
+  if (nm) mesh.material = nm;
+}
 
-// Particles
-const pGeo = new THREE.BufferGeometry(); const count = 120; const pos = new Float32Array(count * 3);
-for (let i = 0; i < count; i++) { const r = 2 + Math.random() * 3; const a = Math.random() * Math.PI * 2; pos[i*3] = Math.cos(a) * r; pos[i*3+1] = 1 + Math.random() * 2; pos[i*3+2] = Math.sin(a) * r; }
-pGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-const pMat = new THREE.PointsMaterial({ color: 0xffe4b3, size: 0.04, sizeAttenuation: true, transparent: true, opacity: 0.9 });
-const points = new THREE.Points(pGeo, pMat); scene.add(points);
+// Load model (probe HEAD then fallback GET range)
+async function isReachable(url) {
+  try {
+    const h = await fetch(url, { method: "HEAD" });
+    if (h.ok) return true;
+  } catch {}
+  try {
+    const g = await fetch(url, { headers: { Range: "bytes=0-0" } });
+    return g.ok;
+  } catch {}
+  return false;
+}
+async function loadModel(url) {
+  const ok = await isReachable(url);
+  if (!ok) {
+    ERR("GLB not reachable at " + url + " (check path / hosting)");
+    return;
+  }
+  HUD("Loading idol…");
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(
+    "https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/"
+  );
+  loader.setDRACOLoader(draco);
+  const gltf = await loader.loadAsync(url);
+  let model = gltf.scene || gltf.scenes?.[0];
+  if (!model) throw new Error("GLB contained no scene");
 
-// Controllers & Teleport
-const controllerModelFactory = new XRControllerModelFactory();
-for (let i = 0; i < 2; i++) { const grip = renderer.xr.getControllerGrip(i); grip.add(controllerModelFactory.createControllerModel(grip)); rig.add(grip); }
-const controllers = [0,1].map(i => { const c = renderer.xr.getController(i); rig.add(c);
-  c.addEventListener("connected", (e) => { c.userData.gamepad = e.data.gamepad; c.userData.handedness = e.data.handedness; });
-  c.addEventListener("disconnected", () => { c.userData.gamepad = null; });
+  let meshes = 0,
+    tris = 0;
+  model.traverse((o) => {
+    if (o.isMesh) {
+      meshes++;
+      cleanupMesh(o);
+      const idx = o.geometry.getIndex();
+      tris +=
+        ((idx ? idx.count : o.geometry.attributes.position?.count || 0) / 3) |
+        0;
+      if (o.material?.isMeshStandardMaterial) o.material.envMapIntensity = 1.0;
+    }
+  });
+
+  const bbox = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  bbox.getSize(size);
+  const center = new THREE.Vector3();
+  bbox.getCenter(center);
+  const targetH = 2.2;
+  const s = size.y > 1e-4 ? targetH / size.y : 1.0;
+  model.scale.setScalar(s);
+
+  const bbox2 = new THREE.Box3().setFromObject(model);
+  const min2 = bbox2.min;
+  const cen2 = bbox2.getCenter(new THREE.Vector3());
+  const lift = -min2.y + 0.65;
+  model.position.set(-cen2.x, lift, -cen2.z);
+
+  scene.add(model);
+  HUD(`Model ready — meshes: ${meshes}, ~tris: ${tris.toLocaleString()}`);
+}
+loadModel(MODEL_URL).catch((e) => ERR(e?.message || e));
+
+// Controllers + teleport (works only in VR)
+const factory = new XRControllerModelFactory();
+for (let i = 0; i < 2; i++) {
+  const g = renderer.xr.getControllerGrip(i);
+  g.add(factory.createControllerModel(g));
+  scene.add(g);
+}
+const controllers = [0, 1].map((i) => {
+  const c = renderer.xr.getController(i);
+  scene.add(c);
   return c;
 });
 
-const MAX_STEPS = 60;
-const curveGeom = new THREE.BufferGeometry().setFromPoints(new Array(MAX_STEPS).fill(0).map(()=> new THREE.Vector3()));
-const curveLine = new THREE.Line(curveGeom, new THREE.LineBasicMaterial({ color: 0x6ee7ff })); curveLine.visible = false; scene.add(curveLine);
-const targetRing = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.55, 32, 1), new THREE.MeshBasicMaterial({ color: 0x9efc8f, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-targetRing.rotation.x = -Math.PI/2; targetRing.position.y = FLOOR_Y + 0.01; targetRing.visible = false; scene.add(targetRing);
-
-let teleportActive = false; let lastHit = null;
-const tmpVec = new THREE.Vector3(); const tmpMat = new THREE.Matrix4(); const gravity = new THREE.Vector3(0, -9.8, 0);
-const FLOOR = new THREE.Plane(new THREE.Vector3(0,1,0), -FLOOR_Y);
-
-// Adjustable arc speed and snap-turn
-let arcSpeed = 8;
-const SPEED_MIN = 4, SPEED_MAX = 14, SPEED_STEP = 0.5, ADJ_COOLDOWN = 120;
-const lastAdjust = new WeakMap();
-const SNAP_TURN_DEG = 30, SNAP_TURN_RAD = THREE.MathUtils.degToRad(SNAP_TURN_DEG);
-const SNAP_DEADZONE = 0.4, SNAP_COOLDOWN_MS = 300; const lastSnap = new WeakMap();
-
-function setHUD() {
-  const hud = document.querySelector(".hint");
-  if (hud) hud.textContent = "Tip: Enter VR. Hold trigger to aim, release to teleport. Thumbstick: ◀︎/▶︎ snap-turn, ▲/▼ arc speed. Speed: " + arcSpeed.toFixed(1) + " m/s";
+let teleportActive = false,
+  lastHit = null,
+  arcSpeed = 8;
+const GRAV = new THREE.Vector3(0, -9.8, 0),
+  TMP = new THREE.Vector3(),
+  MAT = new THREE.Matrix4();
+const FLOOR = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const MAX = 60;
+const curveGeom = new THREE.BufferGeometry().setFromPoints(
+  new Array(MAX).fill(0).map(() => new THREE.Vector3())
+);
+const curveLine = new THREE.Line(
+  curveGeom,
+  new THREE.LineBasicMaterial({ color: 0x6ee7ff })
+);
+curveLine.visible = false;
+scene.add(curveLine);
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.45, 0.55, 32, 1),
+  new THREE.MeshBasicMaterial({
+    color: 0x9efc8f,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+  })
+);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.01;
+ring.visible = false;
+scene.add(ring);
+function pose(c) {
+  const o = new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
+  const d = new THREE.Vector3(0, 0, -1)
+    .applyMatrix4(MAT.extractRotation(c.matrixWorld))
+    .normalize();
+  return { o, d };
 }
-setHUD();
-
-function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
-function getControllerPose(controller) {
-  const origin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
-  const dir = new THREE.Vector3(0, 0, -1).applyMatrix4(tmpMat.extractRotation(controller.matrixWorld)).normalize();
-  return { origin, dir };
+function parab(o, d, s = arcSpeed, dt = 0.03, maxT = 2.0) {
+  const L = [];
+  let v = d.clone().multiplyScalar(s),
+    p = o.clone();
+  for (let t = 0; t < maxT && L.length < MAX; t += dt) {
+    L.push(p.clone());
+    v = v.addScaledVector(GRAV, dt);
+    p = p.addScaledVector(v, dt);
+  }
+  return L;
 }
-function computeParabolaPoints(origin, dir, speed = arcSpeed, dt = 0.03, maxT = 2.0) {
-  const pts = []; let vel = dir.clone().multiplyScalar(speed); let p = origin.clone();
-  for (let t = 0; t < maxT && pts.length < MAX_STEPS; t += dt) { pts.push(p.clone()); vel = vel.addScaledVector(gravity, dt); p = p.addScaledVector(vel, dt); }
-  return pts;
+function floorHit(a, b) {
+  const dir = TMP.copy(b).sub(a);
+  const den = FLOOR.normal.dot(dir);
+  if (Math.abs(den) < 1e-6) return null;
+  const t = -(FLOOR.normal.dot(a) + FLOOR.constant) / den;
+  if (t < 0 || t > 1) return null;
+  return a.clone().addScaledVector(dir, t);
 }
-function intersectFloor(p1, p2) {
-  const dir = tmpVec.copy(p2).sub(p1); const denom = FLOOR.normal.dot(dir);
-  if (Math.abs(denom) < 1e-6) return null; const t = -(FLOOR.normal.dot(p1) + FLOOR.constant) / denom; if (t < 0 || t > 1) return null;
-  return p1.clone().addScaledVector(dir, t);
-}
-function updateTeleport(controller) {
-  const { origin, dir } = getControllerPose(controller);
-  const pts = computeParabolaPoints(origin, dir, arcSpeed); const positions = curveGeom.attributes.position.array;
+function updateTP(c) {
+  const { o, d } = pose(c);
+  const pts = parab(o, d, arcSpeed);
+  const pos = curveGeom.attributes.position.array;
   let hit = null;
-  for (let i = 0; i < MAX_STEPS; i++) {
-    const a = pts[Math.min(i, pts.length - 1)]; positions[i*3] = a.x; positions[i*3+1] = a.y; positions[i*3+2] = a.z;
-    if (!hit && i > 0) { const b = pts[Math.min(i-1, pts.length - 1)]; hit = intersectFloor(b, a); }
+  for (let i = 0; i < MAX; i++) {
+    const A = pts[Math.min(i, pts.length - 1)];
+    pos[i * 3] = A.x;
+    pos[i * 3 + 1] = A.y;
+    pos[i * 3 + 2] = A.z;
+    if (!hit && i > 0) {
+      const B = pts[Math.min(i - 1, pts.length - 1)];
+      hit = floorHit(B, A);
+    }
   }
   curveGeom.attributes.position.needsUpdate = true;
   if (hit) {
-    const maxR = 75; const r2 = hit.x * hit.x + hit.z * hit.z;
-    if (r2 < maxR * maxR) { targetRing.position.set(hit.x, FLOOR_Y + 0.01, hit.z); targetRing.visible = true; lastHit = hit.clone(); }
-    else { targetRing.visible = false; lastHit = null; }
-  } else { targetRing.visible = false; lastHit = null; }
-  curveLine.visible = true; teleportActive = true;
+    ring.position.set(hit.x, 0.01, hit.z);
+    ring.visible = true;
+    lastHit = hit.clone();
+  } else {
+    ring.visible = false;
+    lastHit = null;
+  }
+  curveLine.visible = true;
+  teleportActive = true;
 }
-function endTeleport(){ curveLine.visible = false; targetRing.visible = false; teleportActive = false; }
-function teleportTo(hit) {
-  if (!hit) return;
-  const head = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
-  const headOffset = head.clone().sub(rig.position);
-  rig.position.set(hit.x - headOffset.x, FLOOR_Y, hit.z - headOffset.z);
+function endTP() {
+  curveLine.visible = false;
+  ring.visible = false;
+  teleportActive = false;
 }
-controllers.forEach((c) => {
-  c.addEventListener('selectstart', () => updateTeleport(c));
-  c.addEventListener('squeezestart', () => updateTeleport(c));
-  c.addEventListener('selectend', () => { if (teleportActive) { teleportTo(lastHit); endTeleport(); } });
-  c.addEventListener('squeezeend', () => { if (teleportActive) { teleportTo(lastHit); endTeleport(); } });
-});
+function tpTo(hit) {
+  if (!hit)
+    return; /* in real VR we’d reposition the rig; preview only shows scene */
+}
 
-function readAxes(gp){
-  let best = {x:0, y:0, mag:0}; if (!gp) return best;
-  const pairs = [[0,1],[2,3],[4,5]];
-  for (const [ix,iy] of pairs){
-    if (gp.axes.length > Math.max(ix,iy)){
-      const x = gp.axes[ix] || 0, y = gp.axes[iy] || 0; const mag = Math.hypot(x,y);
-      if (mag > best.mag) best = {x,y,mag};
+const cta = document.getElementById("ctaVR");
+if (cta) {
+  const startVR = async () => {
+    try {
+      if (!navigator.xr) throw new Error("WebXR not available in this browser");
+      const ok = await navigator.xr.isSessionSupported?.("immersive-vr");
+      if (!ok)
+        throw new Error("immersive-vr not supported (no headset/runtime?)");
+      const session = await navigator.xr.requestSession("immersive-vr", {
+        optionalFeatures: [
+          "local-floor",
+          "bounded-floor",
+          "hand-tracking",
+          "layers",
+        ],
+      });
+      await renderer.xr.setSession(session);
+    } catch (e) {
+      ERR(e?.message || e);
     }
-  } return best;
-}
-function processSnapAndSpeed(controller){
-  const gp = controller.userData.gamepad; if (!gp) return;
-  const {x, y} = readAxes(gp); const now = performance.now();
-  if (Math.abs(x) > 0.4) { const last = lastSnap.get(controller) || 0;
-    if (now - last > 300) { rig.rotation.y += (x > 0 ? -THREE.MathUtils.degToRad(30) : THREE.MathUtils.degToRad(30)); lastSnap.set(controller, now); }
-  }
-  if (Math.abs(y) > 0.4) { const last = lastAdjust.get(controller) || 0;
-    if (now - last > 120) { const delta = (-y) * 0.5; arcSpeed = Math.min(14, Math.max(4, arcSpeed + delta)); lastAdjust.set(controller, now); setHUD(); }
-  }
+  };
+  cta.addEventListener("click", startVR);
+  cta.addEventListener("touchend", startVR);
 }
 
-// Resize
+// Resize + animate
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// Animate
 renderer.setAnimationLoop(() => {
   controls.update();
-  const pp = points.geometry.attributes.position;
-  for (let i = 0; i < pp.count; i++) {
-    let y = pp.getY(i) + 0.002 + Math.random()*0.004;
-    if (y > 4) y = 1 + Math.random()*0.2;
-    pp.setY(i, y);
-  }
-  pp.needsUpdate = true;
-
-  controllers.forEach(processSnapAndSpeed);
-  if (teleportActive) {
-    const active = controllers.find(cc => cc.visible) || controllers[0];
-    updateTeleport(active);
-  }
   renderer.render(scene, camera);
 });

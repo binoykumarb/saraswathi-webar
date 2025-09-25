@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>WebXR Support Checker</title>
+  <style>
+    html,body{height:100%;margin:0;background:#0b0b0c;color:#fff;font:14px/1.4 system-ui}
+    .wrap{max-width:900px;margin:24px auto;padding:0 16px}
+    h1{font-size:20px;margin:0 0 10px}
+    code,pre{background:#111;padding:2px 6px;border-radius:6px}
+    .ok{color:#9efc8f}
+    .warn{color:#ffd64d}
+    .err{color:#ff8a8a}
+    button{padding:10px 12px;border:1px solid #333;background:#18181f;color:#fff;border-radius:10px;cursor:pointer}
+    .row{margin:8px 0}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>WebXR Support Checker</h1>
+  <div class="row">Protocol: <code id="proto"></code></div>
+  <div class="row">User-Agent: <code id="ua"></code></div>
+  <div class="row">In iframe? <code id="inframe"></code></div>
+  <div class="row">Same origin? <code id="same"></code></div>
+  <div class="row">navigator.xr present? <code id="hasxr"></code></div>
+  <div class="row"><button id="btn">Test immersive-vr session</button></div>
+  <pre id="log"></pre>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const log = (msg, cls="") => { const el=$("log"); el.textContent += (cls? "["+cls.toUpperCase()+"] " :"") + msg + "\n"; };
+
+$("proto").textContent = location.protocol;
+$("ua").textContent = navigator.userAgent;
+const ifr = (window.top !== window.self);
+$("inframe").textContent = ifr ? "Yes" : "No";
+
+let sameOrigin = true;
+try { void window.top.location.href; } catch(e) { sameOrigin = false; }
+$("same").textContent = ifr ? (sameOrigin ? "Yes (same-origin)" : "No (cross-origin)") : "N/A";
+
+$("hasxr").textContent = (navigator.xr ? "Yes" : "No");
+
+document.getElementById("btn").onclick = async () => {
+  try{
+    if (!navigator.xr) throw new Error("navigator.xr is not available");
+    const s = await navigator.xr.isSessionSupported?.("immersive-vr");
+    log("isSessionSupported('immersive-vr') → " + s, s ? "ok" : "warn");
+    if (!s) throw new Error("immersive-vr not supported on this setup");
+    const session = await navigator.xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor","bounded-floor","hand-tracking","layers"] });
+    log("requestSession OK — VR runtime is working", "ok");
+    await session.end();
+    log("session ended");
+  }catch(e){
+    log(String(e.message || e), "err");
+  }
+};
+</script>
+</body>
+</html>

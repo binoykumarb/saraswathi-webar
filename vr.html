@@ -1,28 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>VR — Saraswati Temple</title>
-  <style>
-    html,body{height:100%;margin:0;background:#09090b;overflow:hidden}
-    canvas{display:block}
-    .hint{position:fixed;left:12px;bottom:12px;color:#ddd;font:12px/1.3 system-ui;background:#0008;padding:6px 10px;border-radius:10px}
-    /* NEW: prominent CTA that triggers native WebXR button */
-    .ctaVR{
-      position:fixed; right:12px; bottom:12px; z-index:5;
-      display:inline-flex; align-items:center; justify-content:center;
-      height:48px; padding:0 16px; border-radius:12px;
-      border:1px solid #2a2a2f; background:#18181f; color:#fff;
-      font:600 14px/1 system-ui; cursor:pointer;
-      box-shadow:0 6px 18px rgba(0,0,0,.35)
-    }
-  </style>
-</head>
-<body>
-  <div class="hint">Tip: Enter VR. Hold trigger to aim, release to teleport. Thumbstick: ◀︎/▶︎ snap-turn, ▲/▼ arc speed.</div>
-  <!-- NEW explicit CTA: we trigger the native VRButton under the hood -->
-  <button id="ctaVR" class="ctaVR">Enter VR</button>
-  <script type="module" src="/js/vr-scene.js"></script>
-</body>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Saraswati Temple VR</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #0b0b0c;
+        color: #eee;
+        font: 14px/1.4 system-ui;
+      }
+      canvas {
+        display: block;
+      }
+      .ui {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: #111a;
+        border: 1px solid #333;
+        padding: 16px 18px;
+        border-radius: 14px;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+        max-width: 540px;
+      }
+      .ui h1 {
+        font-size: 18px;
+        margin: 0 0 12px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      button {
+        padding: 10px 12px;
+        border: 1px solid #333;
+        background: #18181f;
+        color: #fff;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      .sub {
+        color: #bbb;
+        font-size: 13px;
+      }
+      .err {
+        position: fixed;
+        left: 12px;
+        bottom: 12px;
+        background: #300;
+        border: 1px solid #a00;
+        color: #fff;
+        padding: 8px 10px;
+        border-radius: 8px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-model="/assets/3d/saraswathi.glb">
+    <div class="ui" id="ui">
+      <h1>
+        Enter Saraswati Temple VR
+        <small id="status" style="color: #ffb3b3; font-weight: 600"
+          >ready</small
+        >
+      </h1>
+      <div class="sub">Desktop: drag to look. Headset: press “Enter VR”.</div>
+      <div class="row">
+        <button id="enterVR">Enter VR</button>
+        <button id="preview2d">Preview in 2D</button>
+      </div>
+      <div class="sub" style="margin-top: 8px">
+        Model path: <code id="mpath">/assets/3d/saraswathi.glb</code>
+      </div>
+    </div>
+    <div id="err" class="err"></div>
+
+    <!-- Hardwire the model via global too (multiple paths supported) -->
+    <script>
+      window.GLB = "/assets/3d/saraswathi.glb";
+    </script>
+    <!-- cache-bust to avoid stale file -->
+    <script type="module" src="/js/vr-scene.js?v=vr-2025-09-26-7"></script>
+    <script>
+      document.getElementById("preview2d").onclick = function () {
+        const m = "/assets/3d/saraswathi.glb";
+        location.href = "/vr-preview.html?model=" + encodeURIComponent(m);
+      };
+      document.getElementById("enterVR").onclick = function () {
+        document.getElementById("ui").style.display = "none";
+        const tick = () => {
+          const cta = document.getElementById("ctaVR");
+          if (cta) {
+            cta.click();
+          } else {
+            setTimeout(tick, 400);
+          }
+        };
+        tick();
+      };
+      // update UI from scene messages
+      window.addEventListener("message", (ev) => {
+        if (ev?.data?.type === "MODEL_RESOLVED") {
+          const el = document.getElementById("mpath");
+          if (el) el.textContent = ev.data.url;
+        }
+        if (ev?.data?.type === "STATUS") {
+          const s = document.getElementById("status");
+          if (s) s.textContent = ev.data.text;
+        }
+      });
+    </script>
+  </body>
 </html>

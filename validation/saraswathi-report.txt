@@ -1,0 +1,5 @@
+Header: magic=b'glTF', version=2, declared_length=71002124, actual_len=71002124
+Chunk 1: JSON length=19012 (decoded)
+Chunk 2: BIN length=70983084
+Stats: nodes=29, meshes=27, materials=1, accessors=81
+Extensions used? False

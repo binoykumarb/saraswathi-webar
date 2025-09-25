@@ -1,68 +1,84 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
-  <title>Saraswati – Media Hub</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Saraswati Temple – VR / Preview</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
-    /* small tweak so the header VR button looks like other icons */
-    .icon-btn.vr { font-weight:700 }
+    html,body{height:100%;margin:0;background:#0b0b0c}
+    .hud{position:fixed;left:12px;top:12px;z-index:10;color:#eee;background:#111a;border:1px solid #333;
+         padding:6px 10px;border-radius:10px;font:12px/1.35 system-ui;max-width:70vw}
+    .err{position:fixed;left:12px;bottom:12px;z-index:10;color:#fff;background:#300;border:1px solid #a00;
+         padding:8px 10px;border-radius:10px;font:12px/1.35 system-ui;display:none;max-width:70vw;white-space:pre-wrap}
   </style>
 </head>
 <body>
-  <header class="bar" style="--header-h:56px">
-    <button id="togglePlaylist" class="icon-btn" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
-    <div class="brand">Saraswati – Media Hub</div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <div class="hint" id="hint">👆 tap once to enable sound</div>
-      <!-- NEW: explicit Enter VR launcher -->
-      <button id="openVR" class="icon-btn vr" aria-label="Open VR">VR</button>
-    </div>
-  </header>
+  <div class="hud" id="hud">Loading…</div>
+  <div class="err" id="err"></div>
 
-  <div class="app">
-    <!-- Slide-in drawer on mobile, fixed sidebar on desktop -->
-    <aside id="sidebar" class="sidebar" role="navigation" aria-label="Playlist">
-      <div class="side-header">
-        <input id="searchBox" class="search" placeholder="Search playlist…" />
-        <select id="catSel" class="select" aria-label="Category">
-          <option value="all">All</option>
-          <option value="audio">Audio</option>
-          <option value="video">Video</option>
-          <option value="youtube">YouTube</option>
-          <option value="3d">3D / VR</option>
-          <option value="stories">Stories (YouTube Playlist)</option>
-        </select>
-      </div>
+  <a-scene renderer="colorManagement: true; physicallyCorrectLights: true"
+           background="color: #0b0b0c"
+           xr-mode-ui="XRMode: ar; enabled: true">
+    <!-- lights -->
+    <a-entity light="type: hemisphere; intensity: 0.6; color: #fff0e0; groundColor: #0a0a12" position="0 10 0"></a-entity>
+    <a-entity light="type: directional; intensity: 1.0; castShadow: true" position="4 10 6"></a-entity>
 
-      <nav id="plist" class="plist" tabindex="0"></nav>
+    <!-- ground -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="200" height="200" color="#2a2a30" shadow="receive: true"></a-plane>
 
-      <div class="side-controls">
-        <button id="prevBtn" class="btn">⟵ Prev</button>
-        <button id="nextBtn" class="btn">Next ⟶</button>
-      </div>
+    <!-- idol (we set gltf-model via script so we can use URL param or fallback) -->
+    <a-entity id="idol" position="0 0 0" shadow="cast: true; receive: true"></a-entity>
 
-      <div class="side-status small">
-        ✋ Gesture: <span id="gName">–</span><br/>
-        🎥 Status: <span id="gStatus">init…</span>
-      </div>
-    </aside>
+    <!-- camera rig -->
+    <a-entity id="rig" position="0 1.6 6">
+      <a-entity camera look-controls wasd-controls></a-entity>
+    </a-entity>
+  </a-scene>
 
-    <!-- Backdrop for mobile drawer -->
-    <div id="drawerOverlay" class="drawer-overlay" hidden></div>
+  <script>
+    const hud = document.getElementById('hud');
+    const err = document.getElementById('err');
+    function setHUD(t){ hud.textContent = t; }
+    function showErr(t){ err.style.display='block'; err.textContent = t; }
 
-    <main class="main">
-      <iframe id="playerFrame" title="Player" class="player" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer"></iframe>
+    const params = new URLSearchParams(location.search);
+    const modelURL = params.get('model') || '/assets/3d/saraswathi.glb'; // <<< fallback added
+    const audioURL = params.get('audio') || '';
 
-      <button id="togglePlaylistFab" class="fab" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
+    const idol = document.getElementById('idol');
+    idol.setAttribute('gltf-model', modelURL);
 
-      <div class="now small">▶️ Now playing: <span id="nowPlaying">–</span></div>
-    </main>
-  </div>
+    setHUD('Model: ' + modelURL);
 
-  <script src="/js/playlist.js?v=vr1"></script>
-  <script src="/js/app-embed.js?v=vr1" type="module"></script>
+    idol.addEventListener('model-loaded', () => {
+      // center and scale to ~2.2m tall
+      try {
+        const obj = idol.getObject3D('mesh');
+        if (obj) {
+          obj.traverse(n => { if (n.isMesh){ n.castShadow = n.receiveShadow = true; }});
+          const box = new THREE.Box3().setFromObject(obj);
+          const size = new THREE.Vector3(); box.getSize(size);
+          const center = new THREE.Vector3(); box.getCenter(center);
+          const targetH = 2.2;
+          const s = size.y > 1e-4 ? (targetH / size.y) : 1.0;
+          obj.scale.setScalar(s);
+          const box2 = new THREE.Box3().setFromObject(obj);
+          const min2 = box2.min.clone();
+          const cen2 = box2.getCenter(new THREE.Vector3());
+          const lift = -min2.y + 0.5; // lift above ground
+          obj.position.set(-cen2.x, lift, -cen2.z);
+          setHUD('Model ready');
+        }
+      } catch (e) {
+        showErr(String(e && e.message || e));
+      }
+    });
+
+    idol.addEventListener('model-error', (e) => {
+      const msg = (e && e.detail && e.detail.src) ? ('Failed to load ' + e.detail.src) : 'Model load failed';
+      showErr(msg + '\nCheck the path exists and is reachable.');
+    });
+  </script>
 </body>
 </html>
