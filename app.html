@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Saraswati Pooja – AR Stories</title>
+  <link rel="stylesheet" href="styles/styles.css" />
+  <style>
+    .wrap { min-height: 100vh; display: grid; place-items: center; background: radial-gradient(1200px 600px at 50% 0%, #101010, #000); }
+    .card { width: min(720px, 92vw); background: #0e0e0e; border: 1px solid #222; border-radius: 18px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+    .title { font-size: 24px; margin: 0 0 6px; color: #ffe7a1; }
+    .sub { margin: 0 0 16px; color:#ccc; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btnx { padding: 14px 16px; border-radius: 12px; border:1px solid #333; background:#121212; color:#fff; text-decoration:none; text-align:center; font-weight:600; }
+    .btnx:hover { border-color:#555; }
+    .muted { color:#aaa; font-size: 14px; margin-top: 10px; }
+    .hr { height:1px; background:linear-gradient(90deg, transparent, #333, transparent); margin: 14px 0; }
+    .list { margin:0; padding-left: 18px; color:#ddd; }
+    code { background:#161616; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 class="title">Saraswati Pooja – WebAR Stories</h1>
+      <p class="sub">Scan a QR to open the AR page on any phone. Use the options below.</p>
+
+      <div class="grid">
+        <a class="btnx" href="index.html">▶ Start AR (Marker – HIRO)</a>
+        <a class="btnx" href="mindar.html">▶ Start AR (Poster – MindAR)</a>
+        <a class="btnx" href="print/a4-card.html">🖨️ Printable A4 (QR + Poster)</a>
+        <a class="btnx" href="tools/qr.html">🔗 Make a QR for any URL</a>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3 style="margin:8px 0 6px;">How to add your content later</h3>
+      <ul class="list">
+        <li><strong>Audio:</strong> drop <code>intro.mp3</code>, <code>veena.mp3</code>, <code>blessings.mp3</code>, <code>bgm.mp3</code> into <code>assets/audio</code>. (Sample <code>.wav</code> already included.)</li>
+        <li><strong>Poster target:</strong> put your generated MindAR file at <code>assets/mindar/saraswati-target.mind</code>. See <a href="docs/MINDAR-TARGETS.md">docs/MINDAR-TARGETS.md</a>.</li>
+        <li><strong>Chapters:</strong> edit <code>data/chapters.json</code> texts; audio IDs map to the audio elements.</li>
+        <li><strong>3D idol (optional):</strong> place <code>assets/models/saraswati.glb</code>. Otherwise, a golden cube appears.</li>
+      </ul>
+
+      <p class="muted">Tip: Host on GitHub Pages or Netlify (free). Use HTTPS for camera access.</p>
+    </div>
+  </div>
+</body>
+</html>

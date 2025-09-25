@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Saraswati Pooja – WebAR Stories (MindAR)</title>
+
+  <!-- Open-source WebVR/WebAR frameworks -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <link rel="stylesheet" href="styles/styles.css" />
+</head>
+<body>
+  <div id="ui" class="overlay">
+    <div class="panel">
+      <h2>Tap to begin the Saraswati Pooja AR story</h2>
+      <p>Point your camera at the printed <strong>Saraswati poster</strong> used as the image target.</p>
+      <button id="start" class="btn">Begin</button>
+      <p class="hint">You must generate <code>assets/mindar/saraswati-target.mind</code> for your chosen poster.</p>
+    </div>
+  </div>
+
+  <div id="notice" class="notice">Align camera to the poster to start.</div>
+
+  <div id="hud" class="hud" style="display:none;">
+    <button id="prev" class="btn small">Prev</button>
+    <button id="playPause" class="btn small">Pause</button>
+    <button id="next" class="btn small">Next</button>
+  </div>
+
+  <a-scene mindar-image="imageTargetSrc: assets/mindar/saraswati-target.mind;"
+           embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights: true"
+           vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-assets timeout="30000">
+      <!-- Optional BGM -->
+      <audio id="bgm" src="assets/audio/bgm.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+
+      <!-- Narrations -->
+      <audio id="narr1" src="assets/audio/intro.mp3" preload="auto" crossorigin="anonymous"></audio>
+      <audio id="narr2" src="assets/audio/veena.mp3" preload="auto" crossorigin="anonymous"></audio>
+      <audio id="narr3" src="assets/audio/blessings.mp3" preload="auto" crossorigin="anonymous"></audio>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-entity id="idolHolder"></a-entity>
+
+      <a-entity position="0 0.6 0">
+        <a-plane width="1.2" height="0.34" color="#101010" opacity="0.7"></a-plane>
+        <a-text id="caption" value="Welcome to Saraswati Pooja" align="center" width="1.8" color="#ffe7a1" position="0 0 0.01"></a-text>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script src="scripts/main.js"></script>
+
+  <!-- Small on-screen poster preview to guide users -->
+  <div id="posterPreviewBox" style="position:fixed; right:12px; top:12px; background:rgba(0,0,0,.55); padding:8px; border-radius:10px; z-index:10;">
+    <div style="color:#fff; font:600 12px system-ui; text-align:center; margin-bottom:6px;">Point at this poster</div>
+    <div class="label">Point at this poster</div>
+    <img id="posterPreviewImg" src="assets/mindar/saraswati-target.png" alt="Poster preview" style="width:120px; height:auto; display:block;">
+  </div>
+  <script>
+    // Fallback to sample poster if compiled preview is not present
+    const pv = document.getElementById('posterPreviewImg');
+    pv.onerror = () => { pv.src = 'assets/mindar/sample_poster.png'; };
+  </script>
+</body>
+</html>
+
