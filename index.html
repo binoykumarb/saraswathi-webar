@@ -1,70 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Saraswati Pooja – WebAR Stories (AR.js)</title>
-
-  <!-- Open-source WebVR/WebAR frameworks -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
-
-  <link rel="stylesheet" href="styles/styles.css" />
+  <meta charset="UTF-8" />
+  <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#111111" />
+  <title>Saraswati – Media Hub</title>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div id="ui" class="overlay">
-    <div class="panel">
-      <h2>Tap to begin the Saraswati Pooja AR story</h2>
-      <p>Point your camera at the printed <strong>HIRO</strong> marker card.</p>
-      <button id="start" class="btn">Begin</button>
-      <p class="hint">No app needed — works in the browser.</p>
+<header class="bar" style="--header-h:56px">
+  <button id="togglePlaylist" class="icon-btn" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">
+    ☰
+  </button>
+  <div class="brand">Saraswati – Media Hub</div>
+  <div class="hint" id="hint">👆 tap once to enable sound</div>
+</header>
+
+<div class="app">
+  <!-- Slide-in drawer on mobile, fixed sidebar on desktop -->
+  <aside id="sidebar" class="sidebar" role="navigation" aria-label="Playlist">
+    <div class="side-header">
+      <input id="searchBox" class="search" placeholder="Search playlist…" />
+      <select id="catSel" class="select" aria-label="Category">
+        <option value="all">All</option>
+        <option value="audio">Audio</option>
+        <option value="video">Video</option>
+        <option value="youtube">YouTube</option>
+        <option value="3d">3D / VR</option>
+        <option value="stories">Stories (YouTube Playlist)</option>
+      </select>
     </div>
-  </div>
 
-  <div id="notice" class="notice">Align camera to the marker to start.</div>
+    <nav id="plist" class="plist" tabindex="0"></nav>
 
-  <div id="hud" class="hud" style="display:none;">
-    <button id="prev" class="btn small">Prev</button>
-    <button id="playPause" class="btn small">Pause</button>
-    <button id="next" class="btn small">Next</button>
-  </div>
+    <div class="side-controls">
+      <button id="prevBtn" class="btn">⟵ Prev</button>
+      <button id="nextBtn" class="btn">Next ⟶</button>
+    </div>
 
-  <a-scene
-    vr-mode-ui="enabled: false"
-    embedded
-    renderer="colorManagement:true, physicallyCorrectLights:true"
-    arjs="sourceType: webcam; debugUIEnabled: false; patternRatio:0.9;"
-  >
-    <a-assets timeout="30000">
-      <!-- Optional BGM -->
-      <audio id="bgm" src="assets/audio/bgm.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+    <div class="side-status small">
+      ✋ Gesture: <span id="gName">–</span><br/>
+      🎥 Status: <span id="gStatus">init…</span>
+    </div>
+  </aside>
 
-      <!-- Narrations: replace these with your own files in assets/audio -->
-      <audio id="narr1" src="assets/audio/intro.mp3" preload="auto" crossorigin="anonymous"></audio>
-      <audio id="narr2" src="assets/audio/veena.mp3" preload="auto" crossorigin="anonymous"></audio>
-      <audio id="narr3" src="assets/audio/blessings.mp3" preload="auto" crossorigin="anonymous"></audio>
-    </a-assets>
+  <!-- Backdrop for mobile drawer -->
+  <div id="drawerOverlay" class="drawer-overlay" hidden></div>
 
-    <!-- Use built-in preset marker so we don't need to ship a .patt file -->
-    <a-marker preset="hiro" id="marker">
-      <a-entity id="root" position="0 0 0">
-        <!-- Idol model (injected by scripts/main.js if assets/models/saraswati.glb exists).
-             Otherwise we show a simple placeholder shape. -->
-        <a-entity id="idolHolder"></a-entity>
+  <main class="main">
+    <iframe
+            id="playerFrame"
+            title="Player"
+            class="player"
+            allow="autoplay; fullscreen; encrypted-media"
+            referrerpolicy="no-referrer"
+    ></iframe>
 
-        <!-- Caption plane -->
-        <a-entity position="0 0.6 0">
-          <a-plane width="1.2" height="0.34" color="#101010" opacity="0.7"></a-plane>
-          <a-text id="caption" value="Welcome to Saraswati Pooja" align="center" width="1.8" color="#ffe7a1" position="0 0 0.01"></a-text>
-        </a-entity>
-      </a-entity>
-      <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-      <a-entity light="type: directional; intensity: 0.9" position="0 1 1"></a-entity>
-    </a-marker>
+    <button id="togglePlaylistFab" class="fab" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
 
-    <a-entity camera></a-entity>
-  </a-scene>
+    <div class="now small">▶️ Now playing: <span id="nowPlaying">–</span></div>
+  </main>
+</div>
 
-  <script src="scripts/main.js"></script>
+<script src="/js/playlist.js"></script>
+<script src="/js/app-embed.js" type="module"></script>
 </body>
 </html>

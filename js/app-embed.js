@@ -14,7 +14,26 @@ const nextBtn = document.getElementById('nextBtn');
 const catSel  = document.getElementById('catSel');
 const searchBox = document.getElementById('searchBox');
 
-// Start on 'all' and index 0 (VR video)
+// NEW: mobile drawer controls
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('togglePlaylist');
+const toggleFab = document.getElementById('togglePlaylistFab');
+const overlay = document.getElementById('drawerOverlay');
+
+function setDrawer(open){
+  sidebar.classList.toggle('open', open);
+  overlay.classList.toggle('visible', open);
+  overlay.hidden = !open;
+  toggleBtn?.setAttribute('aria-expanded', String(open));
+  toggleFab?.setAttribute('aria-expanded', String(open));
+  if (open) sidebar.focus();
+}
+toggleBtn?.addEventListener('click', ()=> setDrawer(!sidebar.classList.contains('open')));
+toggleFab?.addEventListener('click', ()=> setDrawer(!sidebar.classList.contains('open')));
+overlay?.addEventListener('click', ()=> setDrawer(false));
+window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setDrawer(false); });
+
+// Start on 'all' and index 0 (VR video first)
 let filter = 'all';
 let index  = 0;
 
@@ -69,7 +88,7 @@ function renderList(){
     const meta = document.createElement('div'); meta.className='meta';
     const t = document.createElement('div'); t.className='title'; t.textContent = item.title;
     const ty= document.createElement('div'); ty.className='type'; ty.textContent = item.type.toUpperCase();
-    card.onclick = () => { index = i; saveState(); playCurrent(); };
+    card.onclick = () => { index = i; saveState(); playCurrent(); setDrawer(false); };
     meta.appendChild(t); meta.appendChild(ty);
     card.appendChild(img); card.appendChild(meta);
     plistEl.appendChild(card);
@@ -93,7 +112,6 @@ renderList(); playCurrent();
 
 // Gestures: Wave => Next, Closed_Fist => Prev
 gStatus.textContent = 'loading models…';
-
 let cameraEl = document.querySelector('video[playsinline]');
 if (!cameraEl) {
   cameraEl = document.createElement('video');
@@ -137,4 +155,5 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-window.addEventListener('pointerdown', ()=>{ hint.textContent = "✅ Interaction registered"; }, {passive:true});
+// Tap to help with autoplay when needed
+window.addEventListener('pointerdown', ()=>{ hint.textContent = "✅ interaction registered"; }, {passive:true});
