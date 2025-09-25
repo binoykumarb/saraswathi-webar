@@ -2,70 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#111111" />
   <title>Saraswati – Media Hub</title>
   <link rel="stylesheet" href="/styles.css" />
+  <style>
+    /* small tweak so the header VR button looks like other icons */
+    .icon-btn.vr { font-weight:700 }
+  </style>
 </head>
 <body>
-<header class="bar" style="--header-h:56px">
-  <button id="togglePlaylist" class="icon-btn" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">
-    ☰
-  </button>
-  <div class="brand">Saraswati – Media Hub</div>
-  <div class="hint" id="hint">👆 tap once to enable sound</div>
-</header>
-
-<div class="app">
-  <!-- Slide-in drawer on mobile, fixed sidebar on desktop -->
-  <aside id="sidebar" class="sidebar" role="navigation" aria-label="Playlist">
-    <div class="side-header">
-      <input id="searchBox" class="search" placeholder="Search playlist…" />
-      <select id="catSel" class="select" aria-label="Category">
-        <option value="all">All</option>
-        <option value="audio">Audio</option>
-        <option value="video">Video</option>
-        <option value="youtube">YouTube</option>
-        <option value="3d">3D / VR</option>
-        <option value="stories">Stories (YouTube Playlist)</option>
-      </select>
+  <header class="bar" style="--header-h:56px">
+    <button id="togglePlaylist" class="icon-btn" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
+    <div class="brand">Saraswati – Media Hub</div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div class="hint" id="hint">👆 tap once to enable sound</div>
+      <!-- NEW: explicit Enter VR launcher -->
+      <button id="openVR" class="icon-btn vr" aria-label="Open VR">VR</button>
     </div>
+  </header>
 
-    <nav id="plist" class="plist" tabindex="0"></nav>
+  <div class="app">
+    <!-- Slide-in drawer on mobile, fixed sidebar on desktop -->
+    <aside id="sidebar" class="sidebar" role="navigation" aria-label="Playlist">
+      <div class="side-header">
+        <input id="searchBox" class="search" placeholder="Search playlist…" />
+        <select id="catSel" class="select" aria-label="Category">
+          <option value="all">All</option>
+          <option value="audio">Audio</option>
+          <option value="video">Video</option>
+          <option value="youtube">YouTube</option>
+          <option value="3d">3D / VR</option>
+          <option value="stories">Stories (YouTube Playlist)</option>
+        </select>
+      </div>
 
-    <div class="side-controls">
-      <button id="prevBtn" class="btn">⟵ Prev</button>
-      <button id="nextBtn" class="btn">Next ⟶</button>
-    </div>
+      <nav id="plist" class="plist" tabindex="0"></nav>
 
-    <div class="side-status small">
-      ✋ Gesture: <span id="gName">–</span><br/>
-      🎥 Status: <span id="gStatus">init…</span>
-    </div>
-  </aside>
+      <div class="side-controls">
+        <button id="prevBtn" class="btn">⟵ Prev</button>
+        <button id="nextBtn" class="btn">Next ⟶</button>
+      </div>
 
-  <!-- Backdrop for mobile drawer -->
-  <div id="drawerOverlay" class="drawer-overlay" hidden></div>
+      <div class="side-status small">
+        ✋ Gesture: <span id="gName">–</span><br/>
+        🎥 Status: <span id="gStatus">init…</span>
+      </div>
+    </aside>
 
-  <main class="main">
-    <iframe
-            id="playerFrame"
-            title="Player"
-            class="player"
-            allow="autoplay; fullscreen; encrypted-media"
-            referrerpolicy="no-referrer"
-    ></iframe>
+    <!-- Backdrop for mobile drawer -->
+    <div id="drawerOverlay" class="drawer-overlay" hidden></div>
 
-    <button id="togglePlaylistFab" class="fab" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
+    <main class="main">
+      <iframe id="playerFrame" title="Player" class="player" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer"></iframe>
 
-    <div class="now small">▶️ Now playing: <span id="nowPlaying">–</span></div>
-  </main>
-</div>
+      <button id="togglePlaylistFab" class="fab" aria-controls="sidebar" aria-expanded="false" aria-label="Open playlist">☰</button>
 
-<script src="/js/playlist.js"></script>
-<script src="/js/app-embed.js" type="module"></script>
+      <div class="now small">▶️ Now playing: <span id="nowPlaying">–</span></div>
+    </main>
+  </div>
+
+  <script src="/js/playlist.js?v=vr1"></script>
+  <script src="/js/app-embed.js?v=vr1" type="module"></script>
 </body>
 </html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VR — Saraswati Temple</title>
+  <style>
+    html,body{height:100%;margin:0;background:#09090b;overflow:hidden}
+    canvas{display:block}
+    .hint{position:fixed;left:12px;bottom:12px;color:#ddd;font:12px/1.3 system-ui;background:#0008;padding:6px 10px;border-radius:10px}
+    /* NEW: prominent CTA that triggers native WebXR button */
+    .ctaVR{
+      position:fixed; right:12px; bottom:12px; z-index:5;
+      display:inline-flex; align-items:center; justify-content:center;
+      height:48px; padding:0 16px; border-radius:12px;
+      border:1px solid #2a2a2f; background:#18181f; color:#fff;
+      font:600 14px/1 system-ui; cursor:pointer;
+      box-shadow:0 6px 18px rgba(0,0,0,.35)
+    }
+  </style>
+</head>
+<body>
+  <div class="hint">Tip: Enter VR. Hold trigger to aim, release to teleport. Thumbstick: ◀︎/▶︎ snap-turn, ▲/▼ arc speed.</div>
+  <!-- NEW explicit CTA: we trigger the native VRButton under the hood -->
+  <button id="ctaVR" class="ctaVR">Enter VR</button>
+  <script type="module" src="/js/vr-scene.js"></script>
+</body>
+</html>

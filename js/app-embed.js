@@ -1,4 +1,4 @@
-// Sidebar + Iframe player with Stories playlist support
+// Sidebar + Iframe player with WebXR default + explicit header button
 import { FilesetResolver, HandLandmarker, GestureRecognizer }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.6";
 
@@ -13,6 +13,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const catSel  = document.getElementById('catSel');
 const searchBox = document.getElementById('searchBox');
+const openVRBtn = document.getElementById('openVR');
 
 // NEW: mobile drawer controls
 const sidebar = document.getElementById('sidebar');
@@ -33,9 +34,11 @@ toggleFab?.addEventListener('click', ()=> setDrawer(!sidebar.classList.contains(
 overlay?.addEventListener('click', ()=> setDrawer(false));
 window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') setDrawer(false); });
 
-// Start on 'all' and index 0 (VR video first)
+// ---------- Default: force VR on startup ----------
 let filter = 'all';
 let index  = 0;
+const vrIdx = ALL.findIndex(x => x.type === 'webxr' && x.url === '/vr.html');
+if (vrIdx >= 0) index = vrIdx; // make VR the default every load
 
 function ytId(url){
   try{ const u=new URL(url); if (u.hostname.includes('youtu.be')) return u.pathname.slice(1); if (u.hostname.includes('youtube.com')) return u.searchParams.get('v'); }catch{}
@@ -56,6 +59,9 @@ function toEmbed(item){
     const pid = playlistId(item.url);
     const params = 'rel=0&modestbranding=1&playsinline=1';
     return pid ? `https://www.youtube.com/embed/videoseries?list=${pid}&${params}` : item.url;
+  }
+  if (item.type === 'webxr') {
+    return item.url; // /vr.html
   }
   if (item.type === 'audio') {
     return `/player.html?type=audio&src=${encodeURIComponent(item.url)}&t=${Date.now()}`;
@@ -84,6 +90,7 @@ function renderList(){
     const img = document.createElement('img'); img.className='thumb';
     if (item.type==='youtube' || item.type==='3d'){ const id = ytId(item.url); img.src = id? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : 'https://dummyimage.com/320x180/000/fff.png&text=YouTube'; }
     else if (item.type==='youtube_playlist'){ img.src = 'https://dummyimage.com/320x180/000/fff.png&text=Playlist'; }
+    else if (item.type==='webxr'){ img.src = 'https://dummyimage.com/320x180/000/fff.png&text=VR'; }
     else { img.src = 'https://dummyimage.com/160x160/000/fff.png&text=Audio'; }
     const meta = document.createElement('div'); meta.className='meta';
     const t = document.createElement('div'); t.className='title'; t.textContent = item.title;
@@ -105,8 +112,16 @@ function playCurrent(){
 
 prevBtn.onclick = () => { const L = filtered(); index = (index - 1 + L.length) % L.length; saveState(); playCurrent(); };
 nextBtn.onclick = () => { const L = filtered(); index = (index + 1) % L.length; saveState(); playCurrent(); };
-catSel.onchange = () => { filter = catSel.value; index = 0; saveState(); renderList(); playCurrent(); };
+catSel.onchange = () => { filter = catSel.value; index = (filter==='all' && vrIdx>=0) ? vrIdx : 0; saveState(); renderList(); playCurrent(); };
 searchBox.oninput = () => { index = 0; renderList(); };
+
+// Explicit header "VR" button: jump to /vr.html now
+openVRBtn?.addEventListener('click', () => {
+  if (vrIdx >= 0) { index = vrIdx; }
+  nowPlaying.textContent = 'VR: Saraswati Temple (WebXR)';
+  player.src = '/vr.html';
+  setDrawer(false);
+});
 
 renderList(); playCurrent();
 
