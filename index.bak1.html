@@ -60,78 +60,6 @@
       .sidebar{grid-row:2;max-height:44vh}
       .camWrap{width:180px;height:120px}
     }
-  
-/* --- Mobile phone tweaks --- */
-@media (max-width: 600px){
-  .wrap {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
-  }
-  header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-  header .search {
-    min-width: unset;
-    max-width: unset;
-    width: 100%;
-  }
-  .sidebar {
-    max-height: 35vh;   /* smaller playlist panel so VR canvas remains visible */
-    font-size: 13px;
-  }
-  .sidebar .list {
-    max-height: 28vh;   /* scroll the list within sidebar on phones */
-    overflow-y: auto;
-  }
-  .item .title {
-    font-size: 13px;
-  }
-  .camWrap {
-    width: 140px;
-    height: 100px;
-  }
-  .btn {
-    height: 40px;
-    padding: 0 16px;
-    font-size: 14px;
-  }
-  .controls {
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 8px;
-  }
-  .vrbtn {
-    right: 50%;
-    transform: translateX(50%);
-    bottom: 56px;
-  }
-}
-
-  
-/* --- Mobile collapsible sidebar & backdrop --- */
-.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:4}
-.menuBtn{display:none;align-items:center;gap:8px}
-
-@media (max-width: 600px){
-  .menuBtn{display:inline-flex}
-  /* Make sidebar slide-in drawer on phones */
-  .sidebar{
-    position:fixed;
-    left:0; top:58px; bottom:0;
-    width:min(86vw, 320px);
-    max-height:none;
-    transform:translateX(-100%);
-    transition:transform .25s ease;
-    z-index:9;
-  }
-  body.mobile-sidebar-open .sidebar{ transform: translateX(0); }
-  body.mobile-sidebar-open #backdrop{ display:block; }
-  /* Ensure VR canvas remains visible behind */
-  .main{ z-index:1; }
-}
-
   </style>
 </head>
 <body>
@@ -139,11 +67,10 @@
     <header>
       <div class="title">Saraswati – Media Hub</div>
       <div class="sp"></div>
-      <button id="toggleSidebar" class="btn menuBtn" aria-label="Toggle playlist" aria-expanded="false" aria-controls="sidebar">☰ Menu</button>
       <input id="q" class="search" type="search" placeholder="Search playlist…"/>
     </header>
 
-    <aside id="sidebar" class="sidebar">
+    <aside class="sidebar">
       <div class="sidebarTop">
         <label for="cat">Category:</label>
         <select id="cat">
@@ -156,7 +83,6 @@
       </div>
       <div id="list" class="list"></div>
     </aside>
-    <div id="backdrop" class="backdrop"></div>
 
     <main class="main">
       <div id="toast" class="toast" style="display:none"></div>
@@ -345,17 +271,6 @@
     // Filters
     input.addEventListener('input', applyFilters);
     catSel.addEventListener('change', applyFilters);
-
-    
-    // --- Mobile sidebar toggle ---
-    const toggleBtn = document.getElementById('toggleSidebar');
-    const backdropEl = document.getElementById('backdrop');
-    function closeSidebar(){ document.body.classList.remove('mobile-sidebar-open'); if (toggleBtn) toggleBtn.setAttribute('aria-expanded','false'); }
-    function openSidebar(){ document.body.classList.add('mobile-sidebar-open'); if (toggleBtn) toggleBtn.setAttribute('aria-expanded','true'); }
-    if (toggleBtn){ toggleBtn.addEventListener('click', ()=>{ document.body.classList.contains('mobile-sidebar-open') ? closeSidebar() : openSidebar(); }); }
-    if (backdropEl){ backdropEl.addEventListener('click', closeSidebar); }
-    // Auto-close drawer after selecting an item on small screens
-    listEl.addEventListener('click', ()=>{ if (window.matchMedia('(max-width: 600px)').matches) closeSidebar(); });
 
     // Enter VR
     enterVRBtn.addEventListener('click', ()=>{ if (scn && scn.enterVR) scn.enterVR(); });
