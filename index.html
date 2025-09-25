@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saraswati – Media Hub</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">Saraswati – Media Hub</div>
+    <div class="hint" id="hint">👆 Tap once to enable sound if needed</div>
+  </header>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="side-header">
+        <input id="searchBox" class="search" placeholder="Search playlist…" />
+        <select id="catSel" class="select">
+          <option value="all">All</option>
+          <option value="audio">Audio</option>
+          <option value="video">Video</option>
+          <option value="youtube">YouTube</option>
+          <option value="3d">3D / VR</option>
+          <option value="stories">Stories (YouTube Playlist)</option>
+        </select>
+      </div>
+      <nav id="plist" class="plist"></nav>
+      <div class="side-controls">
+        <button id="prevBtn" class="btn">⟵ Prev</button>
+        <button id="nextBtn" class="btn">Next ⟶</button>
+      </div>
+      <div class="side-status small">
+        ✋ Gesture: <span id="gName">–</span><br/>
+        🎥 Status: <span id="gStatus">init…</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <iframe id="playerFrame" title="Player" class="player" allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer"></iframe>
+      <div class="now small">▶️ Now playing: <span id="nowPlaying">–</span></div>
+    </main>
+  </div>
+
+  <script src="/js/playlist.js"></script>
+  <script src="/js/app-embed.js" type="module"></script>
+</body>
+</html>

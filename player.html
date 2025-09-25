@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player</title>
+  <style>
+    body{margin:0;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui}
+    .wrap{width:100%;max-width:960px;padding:10px}
+    video,audio{width:100%}
+    .hint{font-size:12px;opacity:.8;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="slot"></div>
+    <div class="hint" id="hint">If playback fails, tap to allow sound.</div>
+  </div>
+  <script>
+    function q(name){ const u=new URL(location.href); return u.searchParams.get(name); }
+    const type = q('type'); const src = q('src');
+    const slot = document.getElementById('slot'); const hint = document.getElementById('hint');
+
+    async function safePlay(el){
+      try{ await el.play(); hint.textContent = "Playing"; }
+      catch(e){ hint.textContent = "Tap to enable audio"; }
+    }
+
+    if (type === 'audio'){
+      const a = document.createElement('audio'); a.controls = true; a.src = src; slot.appendChild(a);
+      safePlay(a);
+      window.addEventListener('pointerdown', ()=> safePlay(a), {once:false});
+    } else {
+      const v = document.createElement('video'); v.controls = true; v.playsInline = true; v.src = src; slot.appendChild(v);
+      safePlay(v);
+      window.addEventListener('pointerdown', ()=> safePlay(v), {once:false});
+    }
+  </script>
+</body>
+</html>

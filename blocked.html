@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embedding not available</title>
+  <style>
+    body{margin:0;background:#0b0b0c;color:#fafafa;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui}
+    .card{max-width:720px;background:#121216;border:1px solid #222;border-radius:12px;padding:18px}
+    .muted{opacity:.8}
+    a.btn{display:inline-block;margin-top:10px;padding:10px 12px;background:#ffd64d;color:#111;border-radius:10px;text-decoration:none;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Cannot display this service inside an iframe</h2>
+    <p class="muted">Some providers send security headers such as <code>X-Frame-Options</code> or <code>Content-Security-Policy: frame-ancestors</code> to prevent embedding.</p>
+    <p>You can open it directly in a new tab:</p>
+    <p><a id="out" class="btn" target="_blank" rel="noopener">Open link</a></p>
+  </div>
+  <script>
+    const u = new URL(location.href).searchParams.get('url');
+    const a = document.getElementById('out'); a.href = u || '#'; a.textContent = "Open " + (u || "link");
+  </script>
+</body>
+</html>
