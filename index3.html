@@ -135,9 +135,9 @@
 
     /* Image overlay styles */
     .overlay .imgBox{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:12px}
-    .overlay .imgBox img{display:block;width:min(95vw, 1600px);max-width:98%;max-height:90vh;object-fit:contain;border-radius:12px}
+    .overlay .imgBox img{display:block;width:min(90vw, 1200px);max-width:95%;max-height:85vh;object-fit:contain;border-radius:12px}
     @media (max-width: 600px){
-      .overlay .imgBox img{width:98vw;max-height:78vh}
+      .overlay .imgBox img{width:95vw;max-height:70vh}
     }
 
   </style>
@@ -289,6 +289,30 @@
     const fullList = (window.SARASWATI_PLAYLIST && window.SARASWATI_PLAYLIST.length) ? window.SARASWATI_PLAYLIST : DEFAULT_PLAYLIST;
     let filtered = fullList.slice();
 
+    // --- Force 'Images' entry to be the initial selection on first load ---
+    (function ensureImageOnEntry(){
+      try {
+        const catSel = document.getElementById('cat');
+        if (catSel) catSel.value = 'images';
+        // Find the first 'image' item in fullList and make it active
+        const firstImgIdx = fullList.findIndex(it => it.type === 'image');
+        if (firstImgIdx >= 0) {
+          idx = firstImgIdx;
+        } else {
+          // safety: ensure the Saraswati image exists at the very front
+          const imgEntry = { id:"img-saraswati", type:"image", title:"Saraswati (Image)", url:"/assets/images/saraswati.gif" };
+          fullList.unshift(imgEntry);
+          idx = 0;
+        }
+        // Apply filters (to honor the images category and search text), then render and play
+        applyFilters();
+        renderList();
+        const current = filtered[idx] || filtered[0];
+        if (current) play(current);
+      } catch(e){ try{ showErr('Init image error: ' + e.message); }catch(_){} }
+    })();
+
+
     // Ensure image entry is first (as entry point)
     (function(){
       const imgEntry = { id:"img-saraswati", type:"image", title:"Saraswati (Image)", url:"/assets/images/saraswati.gif" };
@@ -298,16 +322,6 @@
     let idx = 0;
     let currentAudio = null;
     let currentId = filtered.length ? filtered[0].id : null;
-
-    // Prefer image on first boot (preserve 'All' category)
-    (function selectImageFirst(){
-      try{
-        const wantId = 'img-saraswati';
-        const j = fullList.findIndex(it => it && it.id === wantId);
-        if (j >= 0){ idx = j; currentId = wantId; }
-      }catch(_){}
-    })();
-
 
     function applyFilters(){
       const q = (input.value || '').trim().toLowerCase();

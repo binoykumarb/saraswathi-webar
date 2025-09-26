@@ -132,14 +132,6 @@
   .main{ z-index:1; }
 }
 
-
-    /* Image overlay styles */
-    .overlay .imgBox{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:12px}
-    .overlay .imgBox img{display:block;width:min(95vw, 1600px);max-width:98%;max-height:90vh;object-fit:contain;border-radius:12px}
-    @media (max-width: 600px){
-      .overlay .imgBox img{width:98vw;max-height:78vh}
-    }
-
   </style>
 </head>
 <body>
@@ -156,7 +148,6 @@
         <label for="cat">Category:</label>
         <select id="cat">
           <option value="all">All</option>
-          <option value="images">Images</option>
           <option value="webxr">VR</option>
           <option value="audio">Audio</option>
           <option value="video">Video</option>
@@ -269,11 +260,10 @@
     const catSel = document.getElementById('cat');
     const countEl = document.getElementById('count');
 
-    function typeBadge(t){ if (t === 'webxr') return 'VR'; if (t === 'audio') return 'Audio'; if (t === 'youtube') return 'Video'; if (t === 'youtube_playlist') return 'Video'; if (t === 'image') return 'Image'; return t || 'Item'; }
+    function typeBadge(t){ if (t === 'webxr') return 'VR'; if (t === 'audio') return 'Audio'; if (t === 'youtube') return 'Video'; if (t === 'youtube_playlist') return 'Video'; return t || 'Item'; }
     function itemHTML(item, active){ return '<div class="item'+(active?' active':'')+'" data-id="'+item.id+'">' + '<div class="badge">'+ typeBadge(item.type) +'</div>' + '<div class="meta"><div class="title">'+ item.title +'</div><div class="type">'+ (item.type||'') +'</div></div>' + '</div>'; }
 
     const DEFAULT_PLAYLIST = [
-      { id:"img-saraswati", type:"image", title:"Saraswati (Image)", url:"/assets/images/saraswati.gif" },
       { id:"vr-temple", type:"webxr", title:"VR: Saraswati Temple (WebXR)", url:"#internal" },
       { id:"Saraswati Namostute", type:"audio", title:"Saraswati Namostute", url:"/assets/audio/Saraswati Namostute.mp3" },
       { id:"Saraswati Dwadash Naam Stotram", type:"audio", title:"Saraswati Dwadash Naam Stotram", url:"/assets/audio/Saraswati Dwadash Naam Stotram.mp3" },
@@ -288,26 +278,9 @@
   <script>
     const fullList = (window.SARASWATI_PLAYLIST && window.SARASWATI_PLAYLIST.length) ? window.SARASWATI_PLAYLIST : DEFAULT_PLAYLIST;
     let filtered = fullList.slice();
-
-    // Ensure image entry is first (as entry point)
-    (function(){
-      const imgEntry = { id:"img-saraswati", type:"image", title:"Saraswati (Image)", url:"/assets/images/saraswati.gif" };
-      if (!fullList.some(it => it.id === imgEntry.id)) fullList.unshift(imgEntry);
-    })();
-
     let idx = 0;
     let currentAudio = null;
     let currentId = filtered.length ? filtered[0].id : null;
-
-    // Prefer image on first boot (preserve 'All' category)
-    (function selectImageFirst(){
-      try{
-        const wantId = 'img-saraswati';
-        const j = fullList.findIndex(it => it && it.id === wantId);
-        if (j >= 0){ idx = j; currentId = wantId; }
-      }catch(_){}
-    })();
-
 
     function applyFilters(){
       const q = (input.value || '').trim().toLowerCase();
@@ -318,7 +291,6 @@
         if (cat === 'webxr') okCat = it.type === 'webxr';
         else if (cat === 'audio') okCat = it.type === 'audio';
         else if (cat === 'video') okCat = (it.type === 'youtube' || it.type === 'youtube_playlist');
-        else if (cat === 'images') okCat = it.type === 'image';
         // Search match
         const okSearch = !q || (it.title && it.title.toLowerCase().includes(q));
         return okCat && okSearch;
@@ -351,26 +323,6 @@
       const h2 = document.createElement('h2'); h2.textContent = title; const au = document.createElement('audio'); au.controls = true; au.autoplay = true; au.src = url; au.style.width = 'min(640px, 90vw)';
       box.appendChild(h2); box.appendChild(au); overlay.appendChild(box); overlay.style.display = 'flex'; currentAudio = au;
     }
-    
-    function showOverlayImage(title, url){
-      overlay.innerHTML = '';
-      const box = document.createElement('div');
-      box.className = 'imgBox';
-      const img = document.createElement('img');
-      img.alt = title || 'image';
-      img.src = url;
-      img.onerror = function(){
-        if (!img.__triedFallback){
-          img.__triedFallback = true;
-          img.src = '/assets/images/Saraswathe%20devi.gif'; // fallback legacy filename
-        }
-      };
-      box.appendChild(img);
-      overlay.appendChild(box);
-      overlay.style.display = 'flex';
-      showToast('Showing: ' + title);
-    }
-
     function showOverlayIframe(url){
       overlay.innerHTML = ''; const iframe = document.createElement('iframe');
       iframe.allow = 'autoplay; fullscreen; xr-spatial-tracking; camera; microphone; accelerometer; gyroscope'; iframe.allowFullscreen = true; iframe.referrerPolicy = 'no-referrer'; iframe.src = url;
@@ -379,7 +331,6 @@
     function showScene(){ clearOverlay(); showToast('VR scene'); }
     function play(item){
       Array.from(document.querySelectorAll('.item')).forEach((el,i)=> el.classList.toggle('active', i===idx));
-      if (item.type === 'image'){ showOverlayImage(item.title, item.url); return; }
       if (item.type === 'audio'){ showOverlayAudio(item.title, item.url); showToast('Playing: ' + item.title); return; }
       if (item.type === 'youtube' || item.type === 'youtube_playlist'){ showOverlayIframe(ytEmbed(item.url)); showToast('Loading: ' + item.title); return; }
       showScene();
