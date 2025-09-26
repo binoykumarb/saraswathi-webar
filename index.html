@@ -478,5 +478,147 @@
     applyFilters();
     if (filtered.length) setActive(idx);
   </script>
+
+<!-- Eye-level centering (desktop + AR) — non-destructive add-on -->
+<script>
+(function(){
+  const idolEl = document.getElementById('idol');
+  const rig = document.getElementById('rig');
+  const camEl = document.getElementById('camera');
+  const sceneEl = document.getElementById('scene');
+  const deg = d => d*Math.PI/180;
+  const PAD = 1.22;              // step camera a bit farther so model looks smaller
+  const DESK_BASE = 0.18;        // base height above floor in desktop preview (meters)
+  const AR_BASE = 0.02;          // base height above floor in AR (meters)
+  const TARGET_H = 6.0;          // keep your 6m target height
+
+  function getFOV(){
+    try{
+      const c = camEl.getAttribute && camEl.getAttribute('camera');
+      if (c && typeof c.fov === 'number') return c.fov;
+      const cam3 = camEl.getObject3D && camEl.getObject3D('camera');
+      if (cam3 && typeof cam3.fov === 'number') return cam3.fov;
+    }catch(_){}
+    return 70;
+  }
+  function inXR(){
+    try { return !!(sceneEl && sceneEl.renderer && sceneEl.renderer.xr && sceneEl.renderer.xr.isPresenting); } catch(_){ return false; }
+  }
+  function isAR(){
+    try{
+      const s = sceneEl.renderer.xr.getSession();
+      return s && s.environmentBlendMode && s.environmentBlendMode !== 'opaque';
+    }catch(_){ return false; }
+  }
+  function neutralize(root){
+    root.position.set(0,0,0);
+    root.rotation.set(0,0,0);
+    root.scale.set(1,1,1);
+    root.updateMatrixWorld(true);
+  }
+  function enhance(root){
+    root.traverse(n => {
+      if (n.isMesh){
+        n.castShadow = n.receiveShadow = true;
+        n.frustumCulled = false;
+        if (n.material){
+          if (Array.isArray(n.material)){ n.material.forEach(m => { m.side = THREE.DoubleSide; m.needsUpdate = true; }); }
+          else { n.material.side = THREE.DoubleSide; n.material.needsUpdate = true; }
+        }
+      }
+    });
+  }
+
+  function computeBounds(obj){
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const center = box.getCenter(new THREE.Vector3());
+    return { box, size, center, min: box.min.clone(), max: box.max.clone() };
+  }
+
+  function frameDesktop(){
+    try{
+      const obj = idolEl && idolEl.getObject3D && idolEl.getObject3D('mesh');
+      if (!obj || !camEl) return;
+
+      neutralize(obj);
+      enhance(obj);
+
+      // scale container to target height
+      const { size } = computeBounds(obj);
+      const s = size.y > 1e-5 ? (TARGET_H / size.y) : 1.0;
+      const container = idolEl.object3D;
+      container.scale.setScalar(s);
+      container.updateMatrixWorld(true);
+
+      // recompute after scaling
+      const after = computeBounds(obj);
+      const height = after.size.y;
+      const radius = 0.5 * Math.max(after.size.x, after.size.y, after.size.z);
+      const centerY = (after.min.y + after.max.y) / 2;
+      const lift = -after.min.y + DESK_BASE;  // slightly lower than before
+      idolEl.__idolInfo = { radius, centerY, minY: after.min.y, height, scale: s };
+
+      // place container: center X/Z at 0 and base near floor
+      container.position.set(-after.center.x, lift, -after.center.z);
+      container.updateMatrixWorld(true);
+
+      // camera distance using current FOV; do NOT override FOV
+      const fov = getFOV();
+      const dist = (radius / Math.sin(deg(fov/2))) * PAD;
+
+      // rig at model eye level (centerY in world = lift + centerY)
+      const eyeY = lift + centerY;
+      if (rig && !inXR()){
+        rig.setAttribute('position', { x: 0, y: eyeY, z: dist });
+      }
+
+      // aim camera straight at model eye level
+      const tgt = new THREE.Vector3(0, eyeY, 0);
+      camEl.object3D.lookAt(tgt);
+      camEl.object3D.updateMatrixWorld();
+    } catch(e){ /* noop */ }
+  }
+
+  function placeAR(){
+    try{
+      const info = idolEl.__idolInfo;
+      if (!info || !camEl) return;
+      const container = idolEl.object3D;
+
+      // Put base on floor (y=0) with a tiny offset
+      const lift = -info.minY + AR_BASE;
+      container.position.set(0, lift, 0);
+      container.updateMatrixWorld(true);
+
+      // place in front of camera using model radius + FOV
+      const fov = getFOV();
+      const dist = (info.radius / Math.sin(deg(fov/2))) * PAD;
+      const cam = camEl.object3D;
+      const camPos = new THREE.Vector3(); cam.getWorldPosition(camPos);
+      const dir = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion).normalize();
+
+      const target = camPos.clone().add(dir.multiplyScalar(dist));
+      // keep current Y (floor-based), move only X/Z
+      container.position.set(target.x, lift, target.z);
+      container.updateMatrixWorld(true);
+
+      // face camera horizontally
+      container.lookAt(camPos.x, lift, camPos.z);
+    } catch(e){ /* noop */ }
+  }
+
+  // hooks
+  if (idolEl){
+    idolEl.addEventListener('model-loaded', frameDesktop);
+  }
+  window.addEventListener('resize', () => { if (!inXR()) frameDesktop(); });
+  window.addEventListener('orientationchange', () => { if (!inXR()) frameDesktop(); });
+  if (sceneEl){
+    sceneEl.addEventListener('enter-vr', () => { if (isAR()) placeAR(); });
+  }
+})();
+</script>
+
 </body>
 </html>

@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Saraswati – Media Hub (Webcam gestures v2 + Sidebar Category)</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+  <style>
+    :root{--bg:#0b0b0c;--panel:#141419;--muted:#9aa0a6;--text:#fff;--line:#222;--accent:#8ab4f8}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{display:grid;grid-template-columns:300px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
+    header{grid-column:1/3;display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line);background:#0e0e12;position:sticky;top:0;z-index:10}
+    header .title{font-weight:700}
+    header .sp{flex:1}
+    header .search{min-width:220px;max-width:420px;width:100%;background:#0d0d11;border:1px solid #2a2a2f;border-radius:999px;color:#eee;padding:8px 12px;outline:none}
+    .sidebar{border-right:1px solid var(--line);overflow:auto;background:var(--panel);z-index:5;position:relative}
+    .sidebarTop{position:sticky;top:0;z-index:6;background:linear-gradient(#15151b,#121219);padding:10px;border-bottom:1px solid #1e1e24;display:flex;gap:8px;align-items:center}
+    .sidebarTop label{font-size:12px;color:#b7bdc6;opacity:0.9}
+    .sidebarTop select{flex:1;min-width:120px;background:#0d0d11;border:1px solid #2a2a2f;color:#eee;border-radius:10px;padding:8px 10px;outline:none}
+    .sidebarTop .count{margin-left:auto;font-size:12px;color:#9aa0a6}
+    .list{padding:8px;display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #1e1e24;background:#101014;border-radius:12px;cursor:pointer}
+    .item.active{outline:2px solid var(--accent);border-color:#2a2a40}
+    .item .badge{min-width:54px;height:32px;border-radius:8px;background:#050508;display:flex;align-items:center;justify-content:center;color:#bbb;font-weight:700;font-size:11px;border:1px solid #1f1f28}
+    .item .meta{min-width:0}
+    .item .title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .item .type{color:#aaa;font-size:11px}
+    .main{position:relative;overflow:hidden;background:#000;z-index:1}
+    .stage{position:relative;width:100%;height:100%;}
+    a-scene.embedded{width:100% !important;height:100% !important;position:relative !important;display:block !important}
+    canvas.a-canvas{position:absolute !important;inset:0 !important}
+    .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:4}
+    .overlay iframe{width:100%;height:100%;border:0;background:#000}
+    .overlay .audioBox{display:flex;flex-direction:column;align-items:center;gap:16px}
+    .overlay .audioBox h2{margin:0;font-size:16px}
+
+    .controls{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;z-index:6}
+    .btn{height:36px;min-width:44px;padding:0 12px;border-radius:10px;border:1px solid #2a2a2f;background:#18181f;color:#fff;cursor:pointer}
+
+    .toast{position:absolute;left:12px;top:12px;background:#111a;color:#eee;border:1px solid #333;padding:6px 10px;border-radius:10px;z-index:6}
+    .err{position:absolute;left:12px;bottom:12px;background:#300;border:1px solid #a00;color:#fff;padding:8px 10px;border-radius:8px;display:none;z-index:6;white-space:pre-wrap;max-width:min(70vw, 560px)}
+    .vrbtn{position:absolute;right:12px;bottom:12px;z-index:6}
+
+    /* Camera + gesture status */
+    .camHud{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:8;align-items:flex-end}
+    .badge{background:#111a;color:#eee;border:1px solid #333;padding:4px 8px;border-radius:8px;font:11px system-ui}
+    .camWrap{position:relative;width:220px;height:150px;border-radius:10px;overflow:hidden;border:1px solid #222;background:#000}
+    .camWrap video,.camWrap canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .camBtns{display:flex;gap:8px;justify-content:flex-end}
+
+    @media (max-width: 920px){
+      .wrap{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+      .sidebar{grid-row:2;max-height:44vh}
+      .camWrap{width:180px;height:120px}
+    }
+  
+/* --- Mobile phone tweaks --- */
+@media (max-width: 600px){
+  .wrap {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  header .search {
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+  }
+  .sidebar {
+    max-height: 35vh;   /* smaller playlist panel so VR canvas remains visible */
+    font-size: 13px;
+  }
+  .sidebar .list {
+    max-height: 28vh;   /* scroll the list within sidebar on phones */
+    overflow-y: auto;
+  }
+  .item .title {
+    font-size: 13px;
+  }
+  .camWrap {
+    width: 140px;
+    height: 100px;
+  }
+  .btn {
+    height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+  .controls {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 8px;
+  }
+  .vrbtn {
+    right: 50%;
+    transform: translateX(50%);
+    bottom: 56px;
+  }
+}
+
+  
+/* --- Mobile collapsible sidebar & backdrop --- */
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:4}
+.menuBtn{display:none;align-items:center;gap:8px}
+
+@media (max-width: 600px){
+  .menuBtn{display:inline-flex}
+  /* Make sidebar slide-in drawer on phones */
+  .sidebar{
+    position:fixed;
+    left:0; top:58px; bottom:0;
+    width:min(86vw, 320px);
+    max-height:none;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:9;
+  }
+  body.mobile-sidebar-open .sidebar{ transform: translateX(0); }
+  body.mobile-sidebar-open #backdrop{ display:block; }
+  /* Ensure VR canvas remains visible behind */
+  .main{ z-index:1; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">Saraswati – Media Hub</div>
+      <div class="sp"></div>
+      <button id="toggleSidebar" class="btn menuBtn" aria-label="Toggle playlist" aria-expanded="false" aria-controls="sidebar">☰ Menu</button>
+      <input id="q" class="search" type="search" placeholder="Search playlist…"/>
+    </header>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebarTop">
+        <label for="cat">Category:</label>
+        <select id="cat">
+          <option value="all">All</option>
+          <option value="webxr">VR</option>
+          <option value="audio">Audio</option>
+          <option value="video">Video</option>
+        </select>
+        <div class="count" id="count">0 items</div>
+      </div>
+      <div id="list" class="list"></div>
+    </aside>
+    <div id="backdrop" class="backdrop"></div>
+
+    <main class="main">
+      <div id="toast" class="toast" style="display:none"></div>
+      <div id="err" class="err"></div>
+
+      <!-- Right column content -->
+      <div id="stage" class="stage">
+        <a-scene id="scene" embedded
+                 renderer="colorManagement: true; physicallyCorrectLights: true"
+                 background="color: #0b0b0c"
+                 webxr="optionalFeatures: hand-tracking, local-floor, bounded-floor"
+                 xr-mode-ui="enabled: true">
+          <a-entity light="type: hemisphere; intensity: 0.6; color: #fff0e0; groundColor: #0a0a12" position="0 10 0"></a-entity>
+          <a-entity id="dirLight" light="type: directional; intensity: 1.0; castShadow: true" position="4 10 6"></a-entity>
+          <a-plane position="0 0 0" rotation="-90 0 0" width="200" height="200" color="#2a2a30" shadow="receive: true"></a-plane>
+          <a-entity id="idol" position="0 0 0" shadow="cast: true; receive: true"></a-entity>
+          <a-entity id="rig" position="0 1.6 6">
+            <a-entity id="camera" camera look-controls wasd-controls></a-entity>
+          </a-entity>
+          <a-entity id="leftCtl" oculus-touch-controls="hand: left"></a-entity>
+          <a-entity id="rightCtl" oculus-touch-controls="hand: right"></a-entity>
+          <a-entity id="leftHand" hand-tracking-controls="hand: left"></a-entity>
+          <a-entity id="rightHand" hand-tracking-controls="hand: right"></a-entity>
+        </a-scene>
+
+        <button id="enterVR" class="btn vrbtn">Enter VR</button>
+      </div>
+
+      <!-- Overlay for audio/YouTube -->
+      <div id="overlay" class="overlay"></div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button id="prev" class="btn">◀︎ Prev</button>
+        <button id="next" class="btn">Next ▶︎</button>
+      </div>
+
+      <!-- Camera HUD (webcam + status + controls) -->
+      <div class="camHud">
+        <div class="camWrap">
+          <video id="cam" autoplay playsinline muted></video>
+          <canvas id="camCanvas"></canvas>
+        </div>
+        <div class="camBtns">
+          <button id="startCam" class="btn">Start Camera</button>
+          <button id="stopCam" class="btn">Stop</button>
+        </div>
+        <div class="badge" id="camStatus">Camera: off</div>
+        <div class="badge" id="gestStatus">Gesture: none</div>
+        <div class="badge" id="debugStatus">Debug: -</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // --- Utilities / UI helpers ---
+    const $ = sel => document.querySelector(sel);
+    const toast = $('#toast');
+    const err = $('#err');
+    function showToast(t, ms=1200){ toast.textContent = t; toast.style.display = 'block'; clearTimeout(showToast._t); showToast._t = setTimeout(()=>toast.style.display='none', ms); }
+    function showErr(t){ err.style.display='block'; err.textContent = t; }
+
+    // --- A-Frame idol setup ---
+    const params = new URLSearchParams(location.search);
+    const modelURL = params.get('model') || '/assets/3d/saraswathi.glb';
+    const idol = document.getElementById('idol');
+    idol.setAttribute('gltf-model', modelURL);
+    idol.addEventListener('model-error', (e) => {
+      const msg = (e && e.detail && e.detail.src) ? ('Failed to load ' + e.detail.src) : 'Model load failed';
+      showErr(msg + '\nCheck the path exists and is reachable.');
+    });
+    idol.addEventListener('model-loaded', () => {
+      try {
+        const obj = idol.getObject3D('mesh');
+        if (obj) {
+          obj.traverse(n => { if (n.isMesh){ n.castShadow = n.receiveShadow = true; }});
+          const box = new THREE.Box3().setFromObject(obj);
+          const size = new THREE.Vector3(); box.getSize(size);
+          const targetH = 6.0;
+          const s = size.y > 1e-4 ? (targetH / size.y) : 1.0;
+          obj.scale.setScalar(s);
+          const box2 = new THREE.Box3().setFromObject(obj);
+          const min2 = box2.min.clone();
+          const cen2 = box2.getCenter(new THREE.Vector3());
+          const lift = -min2.y + 0.5;
+          obj.position.set(-cen2.x, lift, -cen2.z);
+        }
+      } catch (e) { showErr(String(e && e.message || e)); }
+    });
+  </script>
+
+  <!-- Playlist / Player / Gestures -->
+  <script>
+    const listEl = document.getElementById('list');
+    const overlay = document.getElementById('overlay');
+    const input = document.getElementById('q');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const enterVRBtn = document.getElementById('enterVR');
+    const scn = document.getElementById('scene');
+    const catSel = document.getElementById('cat');
+    const countEl = document.getElementById('count');
+
+    function typeBadge(t){ if (t === 'webxr') return 'VR'; if (t === 'audio') return 'Audio'; if (t === 'youtube') return 'Video'; if (t === 'youtube_playlist') return 'Video'; return t || 'Item'; }
+    function itemHTML(item, active){ return '<div class="item'+(active?' active':'')+'" data-id="'+item.id+'">' + '<div class="badge">'+ typeBadge(item.type) +'</div>' + '<div class="meta"><div class="title">'+ item.title +'</div><div class="type">'+ (item.type||'') +'</div></div>' + '</div>'; }
+
+    const DEFAULT_PLAYLIST = [
+      { id:"vr-temple", type:"webxr", title:"VR: Saraswati Temple (WebXR)", url:"#internal" },
+      { id:"Saraswati Namostute", type:"audio", title:"Saraswati Namostute", url:"/assets/audio/Saraswati Namostute.mp3" },
+      { id:"Saraswati Dwadash Naam Stotram", type:"audio", title:"Saraswati Dwadash Naam Stotram", url:"/assets/audio/Saraswati Dwadash Naam Stotram.mp3" },
+      { id:"Saraswati Chalisa", type:"audio", title:"Saraswati Chalisa", url:"/assets/audio/Saraswati Chalisa.mp3" },
+      { id:"Sarasvati Vandana", type:"audio", title:"Sarasvati Vandana", url:"/assets/audio/Sarasvati Vandana.mp3" },
+      { id:"Sarasvati Mahabhadra", type:"audio", title:"Sarasvati Mahabhadra", url:"/assets/audio/Sarasvati Mahabhadra.mp3" },
+      { id:"Sri Saraswathi Ashtakam", type:"audio", title:"Sri Saraswathi Ashtakam", url:"/assets/audio/Sri Saraswathi Ashtakam.mp3" },
+      { id:"yt-stories", type:"youtube_playlist", title:"Saraswati Stories (YouTube Playlist)", url:"https://www.youtube.com/playlist?list=PLY7o2LjD14VqHRYMmYtQ1ffw5zNPHYwXf" }
+    ];
+  </script>
+  <script src="/playlist.js"></script>
+  <script>
+    const fullList = (window.SARASWATI_PLAYLIST && window.SARASWATI_PLAYLIST.length) ? window.SARASWATI_PLAYLIST : DEFAULT_PLAYLIST;
+    let filtered = fullList.slice();
+    let idx = 0;
+    let currentAudio = null;
+    let currentId = filtered.length ? filtered[0].id : null;
+
+    function applyFilters(){
+      const q = (input.value || '').trim().toLowerCase();
+      const cat = catSel.value;
+      filtered = fullList.filter(it => {
+        // Category match
+        let okCat = true;
+        if (cat === 'webxr') okCat = it.type === 'webxr';
+        else if (cat === 'audio') okCat = it.type === 'audio';
+        else if (cat === 'video') okCat = (it.type === 'youtube' || it.type === 'youtube_playlist');
+        // Search match
+        const okSearch = !q || (it.title && it.title.toLowerCase().includes(q));
+        return okCat && okSearch;
+      });
+      countEl.textContent = filtered.length + (filtered.length===1 ? ' item' : ' items');
+      // Keep selection if present, otherwise reset
+      const keep = filtered.findIndex(it => it.id === currentId);
+      idx = keep >= 0 ? keep : 0;
+      renderList();
+    }
+
+    function renderList(){ listEl.innerHTML = filtered.map((it, i)=> itemHTML(it, i===idx)).join(''); }
+    function setActive(i){
+      idx = Math.max(0, Math.min(filtered.length-1, i));
+      currentId = filtered[idx] ? filtered[idx].id : null;
+      renderList();
+      if (filtered[idx]) play(filtered[idx]);
+    }
+    function ytEmbed(url){
+      try{
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com') && u.searchParams.get('list')) return 'https://www.youtube.com/embed/videoseries?list=' + u.searchParams.get('list') + '&rel=0&modestbranding=1&playsinline=1';
+        let id = u.searchParams.get('v'); if (!id && u.hostname.includes('youtu.be')) id = u.pathname.slice(1);
+        return 'https://www.youtube.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1';
+      }catch{ return url; }
+    }
+    function clearOverlay(){ overlay.style.display = 'none'; overlay.innerHTML = ''; if (currentAudio){ try{ currentAudio.pause(); }catch{} } currentAudio = null; }
+    function showOverlayAudio(title, url){
+      overlay.innerHTML = ''; const box = document.createElement('div'); box.className = 'audioBox';
+      const h2 = document.createElement('h2'); h2.textContent = title; const au = document.createElement('audio'); au.controls = true; au.autoplay = true; au.src = url; au.style.width = 'min(640px, 90vw)';
+      box.appendChild(h2); box.appendChild(au); overlay.appendChild(box); overlay.style.display = 'flex'; currentAudio = au;
+    }
+    function showOverlayIframe(url){
+      overlay.innerHTML = ''; const iframe = document.createElement('iframe');
+      iframe.allow = 'autoplay; fullscreen; xr-spatial-tracking; camera; microphone; accelerometer; gyroscope'; iframe.allowFullscreen = true; iframe.referrerPolicy = 'no-referrer'; iframe.src = url;
+      overlay.appendChild(iframe); overlay.style.display = 'flex';
+    }
+    function showScene(){ clearOverlay(); showToast('VR scene'); }
+    function play(item){
+      Array.from(document.querySelectorAll('.item')).forEach((el,i)=> el.classList.toggle('active', i===idx));
+      if (item.type === 'audio'){ showOverlayAudio(item.title, item.url); showToast('Playing: ' + item.title); return; }
+      if (item.type === 'youtube' || item.type === 'youtube_playlist'){ showOverlayIframe(ytEmbed(item.url)); showToast('Loading: ' + item.title); return; }
+      showScene();
+    }
+
+    // Clicks
+    listEl.addEventListener('click', (e)=>{ const card = e.target.closest('.item'); if (!card) return; const i = Array.from(listEl.children).indexOf(card); setActive(i); });
+    // Prev / Next
+    function prev(){ if (!filtered.length) return; setActive((idx - 1 + filtered.length) % filtered.length); }
+    function next(){ if (!filtered.length) return; setActive((idx + 1) % filtered.length); }
+    prevBtn.onclick = prev; nextBtn.onclick = next;
+    // Filters
+    input.addEventListener('input', applyFilters);
+    catSel.addEventListener('change', applyFilters);
+
+    
+    // --- Mobile sidebar toggle ---
+    const toggleBtn = document.getElementById('toggleSidebar');
+    const backdropEl = document.getElementById('backdrop');
+    function closeSidebar(){ document.body.classList.remove('mobile-sidebar-open'); if (toggleBtn) toggleBtn.setAttribute('aria-expanded','false'); }
+    function openSidebar(){ document.body.classList.add('mobile-sidebar-open'); if (toggleBtn) toggleBtn.setAttribute('aria-expanded','true'); }
+    if (toggleBtn){ toggleBtn.addEventListener('click', ()=>{ document.body.classList.contains('mobile-sidebar-open') ? closeSidebar() : openSidebar(); }); }
+    if (backdropEl){ backdropEl.addEventListener('click', closeSidebar); }
+    // Auto-close drawer after selecting an item on small screens
+    listEl.addEventListener('click', ()=>{ if (window.matchMedia('(max-width: 600px)').matches) closeSidebar(); });
+
+    // Enter VR
+    enterVRBtn.addEventListener('click', ()=>{ if (scn && scn.enterVR) scn.enterVR(); });
+
+    // Touch/mouse/keys fallback
+    let sx=null, sy=null, dragging=false;
+    function start(x,y){ sx=x; sy=y; dragging=true; }
+    function end(x,y){ if (!dragging) return; dragging=false; const dx = x - sx, dy = y - sy; if (Math.abs(dx) > Math.max(60, Math.abs(dy)*1.6)){ if (dx < 0) next(); else prev(); } }
+    document.body.addEventListener('touchstart', e=> start(e.touches[0].clientX, e.touches[0].clientY), {passive:true});
+    document.body.addEventListener('touchend', e=> end(e.changedTouches[0].clientX, e.changedTouches[0].clientY));
+    document.body.addEventListener('mousedown', e=> start(e.clientX, e.clientY));
+    document.body.addEventListener('mouseup', e=> end(e.clientX, e.clientY));
+    window.addEventListener('keydown', e=>{ if (e.key === 'ArrowRight') next(); else if (e.key === 'ArrowLeft') prev(); });
+
+    // VR controllers
+    const leftCtl = document.getElementById('leftCtl'); const rightCtl = document.getElementById('rightCtl');
+    if (leftCtl){ leftCtl.addEventListener('xbuttondown', prev); leftCtl.addEventListener('ybuttondown', prev); leftCtl.addEventListener('thumbstickmoved', e=>{ if ((e.detail||{}).x < -0.8) prev(); }); }
+    if (rightCtl){ rightCtl.addEventListener('abuttondown', next); rightCtl.addEventListener('bbuttondown', next); rightCtl.addEventListener('thumbstickmoved', e=>{ if ((e.detail||{}).x > 0.8) next(); }); }
+
+    // --- Webcam gestures (v2) ---
+    const camStatus = document.getElementById('camStatus');
+    const gestStatus = document.getElementById('gestStatus');
+    const debugStatus = document.getElementById('debugStatus');
+    const startBtn = document.getElementById('startCam');
+    const stopBtn = document.getElementById('stopCam');
+    const video = document.getElementById('cam');
+    const canvas = document.getElementById('camCanvas');
+    const ctx = canvas.getContext('2d');
+    let camera = null, hands = null, camRunning = false;
+
+    function setCamStatus(s){ camStatus.textContent = 'Camera: ' + s; }
+    function setGestStatus(s){ gestStatus.textContent = 'Gesture: ' + s; }
+    function setDebug(s){ debugStatus.textContent = 'Debug: ' + s; }
+
+    function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y, dz=(a.z||0)-(b.z||0); return Math.hypot(dx,dy,dz); }
+
+    function extendedCount(lm){
+      // indices of tips and MCPs: index(8,5), middle(12,9), ring(16,13), pinky(20,17)
+      const wrist = lm[0];
+      const pairs = [[8,5],[12,9],[16,13],[20,17]];
+      const base = dist(lm[0], lm[9]) || 1; // hand scale ~ wrist->middle_mcp
+      let count = 0;
+      for (const [tip,mcp] of pairs){
+        const dTip = dist(lm[tip], wrist);
+        const dMcp = dist(lm[mcp], wrist);
+        if (dTip > dMcp + 0.10*base) count++; // margin improves stability
+      }
+      return count; // 0..4
+    }
+
+    // Hysteresis
+    let openFrames = 0, fistFrames = 0;
+    const cooldown = {next:0, prev:0}, GAP=650;
+
+    function classifyAndAct(allLm){
+      if (!allLm || !allLm.length){ setGestStatus('none'); setDebug('-'); openFrames=0; fistFrames=0; return; }
+      let best = {ext:-1, idx:0};
+      allLm.forEach((lm,i)=>{ const ext = extendedCount(lm); if (ext>best.ext){ best={ext, idx:i}; }});
+      const ext = best.ext;
+      setDebug('extended=' + ext);
+
+      if (ext >= 3){ openFrames++; fistFrames=0; setGestStatus('open ('+ext+'/4)'); }
+      else if (ext <= 1){ fistFrames++; openFrames=0; setGestStatus('fist ('+ext+'/4)'); }
+      else { setGestStatus('neutral ('+ext+'/4)'); openFrames=0; fistFrames=0; }
+
+      const now = performance.now();
+      if (openFrames >= 3 && (now - cooldown.next > GAP)){ cooldown.next = now; openFrames=0; next(); showToast('▶︎ Next (open palm)'); }
+      if (fistFrames >= 3 && (now - cooldown.prev > GAP)){ cooldown.prev = now; fistFrames=0; prev(); showToast('◀︎ Prev (fist)'); }
+    }
+
+    function onResults(results){
+      const w = canvas.width = video.videoWidth || 640;
+      const h = canvas.height = video.videoHeight || 480;
+      ctx.save();
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(results.image, 0, 0, w, h);
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length){
+        for (const landmarks of results.multiHandLandmarks){
+          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: '#6cf', lineWidth: 2});
+          drawLandmarks(ctx, landmarks, {color: '#fff', lineWidth: 1, radius: 1.4});
+        }
+        classifyAndAct(results.multiHandLandmarks);
+      }else{
+        setGestStatus('none');
+        setDebug('-');
+        openFrames=0; fistFrames=0;
+      }
+      ctx.restore();
+    }
+
+    async function startCamera(){
+      try{
+        hands = new Hands({locateFile: (file)=> 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file});
+        hands.setOptions({maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5});
+        hands.onResults(onResults);
+
+        camera = new Camera(video, {
+          onFrame: async () => { if (hands) await hands.send({image: video}); },
+          width: 640, height: 480
+        });
+        await camera.start();
+        camRunning = true;
+        setCamStatus('on');
+        setGestStatus('none');
+      }catch(e){
+        setCamStatus('error');
+        showErr('Camera error: ' + (e && e.message ? e.message : e));
+      }
+    }
+    function stopCamera(){
+      try{ if (camera && camera.stop) camera.stop(); }catch{}
+      camRunning = false;
+      setCamStatus('off');
+    }
+    document.getElementById('startCam').addEventListener('click', startCamera);
+    document.getElementById('stopCam').addEventListener('click', stopCamera);
+    (async ()=>{ try{ await startCamera(); }catch{} })();
+
+    // Boot
+    applyFilters();
+    if (filtered.length) setActive(idx);
+  </script>
+</body>
+</html>
